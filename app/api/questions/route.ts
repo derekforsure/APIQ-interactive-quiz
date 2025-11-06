@@ -11,7 +11,6 @@ const questionSchema = z.object({
   incorrect_option_3: z.string().optional().nullable().transform(e => e === "" ? null : e),
   category: z.string().default('General'),
   difficulty: z.number().int().min(1).max(5).default(1),
-  round: z.number().int().min(1).default(1),
   topic: z.string().default('General'),
   question_type: z.string().default('text'),
 });
@@ -62,12 +61,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const { text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, round, topic, question_type } = validationResult.data;
+    const { text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, topic, question_type } = validationResult.data;
 
     connection = await getConnection();
     const [result] = await connection.execute(
-      'INSERT INTO questions_bank (text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, round, topic, question_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, round, topic, question_type]
+      'INSERT INTO questions_bank (text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, topic, question_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, topic, question_type]
     );
     
     return successResponse({ message: 'Question added successfully', result }, 'Question added successfully', 201);

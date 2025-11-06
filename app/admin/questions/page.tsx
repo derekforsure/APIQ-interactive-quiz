@@ -11,7 +11,6 @@ interface Question {
   incorrect_option_3: string | null;
   category: string;
   difficulty: number;
-  round: number;
   topic: string;
   question_type: string;
   created_at: string;
@@ -53,7 +52,6 @@ export default function QuestionsPage() {
     incorrect_option_3: '',
     category: 'General Knowledge',
     difficulty: 1,
-    round: 1,
     topic: 'General',
     question_type: 'text',
   });
@@ -109,7 +107,6 @@ export default function QuestionsPage() {
       incorrect_option_3: question.incorrect_option_3 || '',
       category: question.category,
       difficulty: question.difficulty,
-      round: question.round,
       topic: question.topic,
       question_type: question.question_type,
     });
@@ -150,7 +147,6 @@ export default function QuestionsPage() {
         incorrect_option_3: '',
         category: 'General Knowledge',
         difficulty: 1,
-        round: 1,
         topic: 'General',
         question_type: 'text',
       });
@@ -171,7 +167,6 @@ export default function QuestionsPage() {
       incorrect_option_3: '',
       category: 'General Knowledge',
       difficulty: 1,
-      round: 1,
       topic: 'General',
       question_type: 'text',
     });
@@ -391,17 +386,6 @@ export default function QuestionsPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Round</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={newQuestion.round}
-                        onChange={(e) => setNewQuestion({ ...newQuestion, round: parseInt(e.target.value) })}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                      />
-                    </div>
-
-                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Question Type</label>
                       <select
                         value={newQuestion.question_type}
@@ -419,17 +403,17 @@ export default function QuestionsPage() {
                         <option value="true_false">True/False</option>
                       </select>
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Topic</label>
-                    <input
-                      type="text"
-                      value={newQuestion.topic}
-                      onChange={(e) => setNewQuestion({ ...newQuestion, topic: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                      placeholder="Enter topic (optional)"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Topic</label>
+                      <input
+                        type="text"
+                        value={newQuestion.topic}
+                        onChange={(e) => setNewQuestion({ ...newQuestion, topic: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        placeholder="Enter topic (optional)"
+                      />
+                    </div>
                   </div>
 
                   {newQuestion.question_type === 'multiple_choice' && (

@@ -16,7 +16,6 @@ interface QuizState {
   isBuzzerActive: boolean;
   activeStudent: string | null;
   currentQuestionIndex: number;
-  currentRound: number;
   scores: Record<string, number>;
   remainingTime: number;
   ineligibleStudents: string[];
@@ -86,7 +85,7 @@ export default function StudentQuizPage() {
   const handleBuzz = () => {
     if (quizState?.isBuzzerActive && !quizState.ineligibleStudents.includes(session?.studentId ?? '')) {
       buzzSoundRef.current?.play();
-      ws.current?.send(JSON.stringify({ type: 'BUZZ', payload: { sessionId: session?.quizSessionId, studentId: session?.studentId, currentRound: quizState.currentRound } }));
+      ws.current?.send(JSON.stringify({ type: 'BUZZ', payload: { sessionId: session?.quizSessionId, studentId: session?.studentId } }));
     }
   };
 

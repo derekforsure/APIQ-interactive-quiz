@@ -27,7 +27,7 @@ Built with cutting-edge web technologies, APIQ combines real-time WebSocket comm
 ### 🎛️ Administrator Dashboard
 
 - **Session Management**: Create, start, pause, and end quiz sessions with intuitive controls
-- **Question Bank**: Comprehensive system to organize questions by topic, difficulty level, and round
+- **Question Bank**: Comprehensive system to organize questions by topic and difficulty level
 - **Real-time Control**: Advance questions, reveal answers, and manage the buzzer system instantly
 - **Participant Management**: Monitor active participants, track progress, and remove inactive users
 - **Flexible Scoring**: Switch between individual and department-based scoring modes
@@ -39,7 +39,7 @@ Built with cutting-edge web technologies, APIQ combines real-time WebSocket comm
 
 - **Quick Join**: Enter a session ID to instantly join a quiz
 - **Real-time Updates**: Questions appear instantly as the admin advances
-- **Interactive Buzzer**: Quick-fire round participation with responsive feedback
+- **Interactive Buzzer**: Quick-fire participation with responsive feedback
 - **Direct Answer Submission**: Submit answers seamlessly through the interface
 - **Personal Dashboard**: Track individual scores and overall rankings
 - **Responsive Design**: Optimized for desktop, tablet, and mobile devices

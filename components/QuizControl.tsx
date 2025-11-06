@@ -15,7 +15,6 @@ interface QuizState {
   isBuzzerActive: boolean;
   activeStudent: string | null;
   currentQuestionIndex: number;
-  currentRound: number;
   scores: Record<string, number>;
   remainingTime: number;
   ineligibleStudents: string[];
@@ -106,11 +105,10 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
   const handleNextQuestion = () => {
     if (!quizState) return;
     const nextQuestionIndex = quizState.currentQuestionIndex + 1;
-    const nextQuestion = questions[nextQuestionIndex];
-    if (nextQuestion) {
-      sendCommand('NEXT_QUESTION', { questionId: nextQuestion.id });
+    if (nextQuestionIndex < questions.length) {
+      sendCommand('NEXT_QUESTION', { questionId: questions[nextQuestionIndex].id });
     } else {
-      sendCommand('NEXT_QUESTION');
+      sendCommand('END_QUIZ');
     }
   };
 
@@ -155,7 +153,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Quiz Control Panel</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Round {quizState?.currentRound || 0} {quizState?.isQuizEnded ? '• Quiz Ended' : quizState?.isQuizStarted ? '• In Progress' : '• Not Started'}
+            {quizState?.isQuizEnded ? 'Quiz Ended' : quizState?.isQuizStarted ? 'In Progress' : 'Not Started'}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -244,10 +242,10 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
             <div className="flex gap-2">
               {isQuizEnded ? (
                 <button
-                  onClick={() => sendCommand('START_NEW_ROUND')}
+                  onClick={() => sendCommand('START_QUIZ')}
                   className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
                 >
-                  Start New Round
+                  Start New Quiz
                 </button>
               ) : Boolean(!quizState?.isQuizStarted && !isQuizEnded) ? (
                 <button

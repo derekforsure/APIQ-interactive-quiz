@@ -8,12 +8,10 @@ const submitAnswerSchema = z.object({
   sessionId: z.string(),
   questionId: z.number(),
   answer: z.string(),
-  currentQuizRound: z.number(),
 });
 
 interface QuestionInfo extends RowDataPacket {
   answer: string;
-  round: number;
 }
 
 interface StudentQuestionScore extends RowDataPacket {
@@ -39,22 +37,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const { sessionId, questionId, answer, currentQuizRound } = validationResult.data;
+    const { sessionId, questionId, answer } = validationResult.data;
     const studentId = session.studentId;
 
     connection = await getConnection();
-
-    // Get the current round if not provided or invalid
-    let effectiveRound = currentQuizRound;
-    if (!effectiveRound || effectiveRound <= 0) {
-      // Get the maximum round for this session and student
-      const [maxRoundRows] = await connection.execute<RowDataPacket[]>(
-        "SELECT MAX(round) as max_round FROM student_round_scores WHERE student_id = ? AND session_id = ?",
-        [studentId, sessionId]
-      );
-      
-      effectiveRound = (maxRoundRows[0]?.max_round || 0) + 1;
-    }
 
     // Get the correct answer
     const [questionRows] = await connection.execute<QuestionInfo[]>(
@@ -71,26 +57,26 @@ export async function POST(request: Request) {
 
     // Update or insert the student's score for the current question
     await connection.execute(
-      `INSERT INTO student_question_scores (student_id, session_id, question_id, round, score)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE score = VALUES(score)`,
-      [studentId, sessionId, questionId, effectiveRound, newScoreForQuestion]
-    );
-
-    // Recalculate total score for the current round using effectiveRound
-    const [roundScores] = await connection.execute<StudentQuestionScore[]>(
-      "SELECT SUM(sqs.score) as score FROM student_question_scores sqs WHERE sqs.student_id = ? AND sqs.session_id = ? AND sqs.round = ?",
-      [studentId, sessionId, effectiveRound]
-    );
-
-    const totalRoundScore = roundScores[0].score || 0;
-
-    // Update or insert the student's score for the current round
-    await connection.execute(
-      `INSERT INTO student_round_scores (student_id, session_id, round, score)
+      `INSERT INTO student_question_scores (student_id, session_id, question_id, score)
        VALUES (?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE score = VALUES(score)`,
-      [studentId, sessionId, effectiveRound, totalRoundScore]
+      [studentId, sessionId, questionId, newScoreForQuestion]
+    );
+
+    // Recalculate total score for the student in the session
+    const [totalScores] = await connection.execute<StudentQuestionScore[]>(
+      "SELECT SUM(sqs.score) as score FROM student_question_scores sqs WHERE sqs.student_id = ? AND sqs.session_id = ?",
+      [studentId, sessionId]
+    );
+
+    const totalScore = totalScores[0].score || 0;
+
+    // Update or insert the student's total score
+    await connection.execute(
+      `INSERT INTO student_scores (student_id, session_id, score)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE score = VALUES(score)`,
+      [studentId, sessionId, totalScore]
     );
 
     return successResponse(

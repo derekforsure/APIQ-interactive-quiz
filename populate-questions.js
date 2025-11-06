@@ -163,13 +163,12 @@ async function populateDatabase() {
       
       for (const question of allQuestions) {
         await connection.execute(
-          'INSERT INTO questions_bank (text, answer, category, difficulty, round, topic, question_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO questions_bank (text, answer, category, difficulty, topic, question_type) VALUES (?, ?, ?, ?, ?, ?)',
           [
             question.text,
             question.answer,
             category,
             question.difficulty,
-            1,
             category,
             'text'
           ]

@@ -16,7 +16,6 @@ interface Question {
   answer: string;
   category: string;
   difficulty: number;
-  round: number;
   topic: string;
   question_type: string;
   options: string | null;

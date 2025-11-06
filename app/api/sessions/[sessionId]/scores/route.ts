@@ -26,21 +26,20 @@ export async function GET(
 
     if (mode === 'department') {
       [rows] = await connection.execute<ScoreResult[]>(
-        `SELECT d.name as name, COALESCE(SUM(srs.score), 0) as score
+        `SELECT d.name as name, COALESCE(SUM(ds.score), 0) as score
          FROM departments d
-         JOIN students s ON d.id = s.department_id
-         JOIN student_round_scores srs ON s.student_id = srs.student_id
-         WHERE srs.session_id = ?
+         LEFT JOIN department_scores ds ON d.id = ds.department_id
+         WHERE ds.session_id = ?
          GROUP BY d.name
          ORDER BY score DESC`,
         [sessionId]
       );
     } else { // individual mode or default
       [rows] = await connection.execute<ScoreResult[]>(
-        `SELECT s.name as name, COALESCE(SUM(srs.score), 0) as score
+        `SELECT s.name as name, COALESCE(SUM(ss.score), 0) as score
          FROM students s
-         JOIN student_round_scores srs ON s.student_id = srs.student_id
-         WHERE srs.session_id = ?
+         LEFT JOIN student_scores ss ON s.student_id = ss.student_id
+         WHERE ss.session_id = ?
          GROUP BY s.name
          ORDER BY score DESC`,
         [sessionId]

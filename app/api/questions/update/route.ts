@@ -13,7 +13,6 @@ const updateQuestionSchema = z.object({
   incorrect_option_3: z.string().optional().nullable().transform(e => e === "" ? null : e),
   category: z.string().optional(),
   difficulty: z.number().int().min(1).max(5).optional(),
-  round: z.number().int().min(1).optional(),
   topic: z.string().optional(),
   question_type: z.string().optional(),
 }).strict().refine(data => Object.keys(data).length > 1, {
