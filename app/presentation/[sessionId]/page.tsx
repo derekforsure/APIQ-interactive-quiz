@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import Leaderboard from '@/components/Leaderboard'; // Import the Leaderboard component
 
 interface Question {
   id: number;
@@ -18,6 +19,7 @@ interface QuizState {
   scores: Record<string, number>;
   remainingTime: number;
   showAnswer: boolean;
+  isQuizEnded: boolean; // Added
 }
 
 export default function PresentationPage() {
@@ -25,6 +27,7 @@ export default function PresentationPage() {
   const sessionId = params.sessionId as string;
   const [questions, setQuestions] = useState<Question[]>([]);
   const [quizState, setQuizState] = useState<QuizState | null>(null);
+  const [finalLeaderboardScores, setFinalLeaderboardScores] = useState<Record<string, number> | null>(null); // Added
   const [loading, setLoading] = useState(true);
   const ws = useRef<WebSocket | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -78,10 +81,31 @@ export default function PresentationPage() {
       ws.current?.send(JSON.stringify({ type: 'REGISTER', payload: { role: 'spectator', sessionId } }));
     };
 
-    ws.current.onmessage = (event) => {
+    ws.current.onmessage = async (event) => { // Added async
       const data = JSON.parse(event.data);
-      if (['QUIZ_STATE', 'QUIZ_STARTED', 'BUZZER_ACTIVATED', 'SCORES_UPDATED', 'NEW_QUESTION', 'TIMER_UPDATE', 'BUZZER_OPEN'].includes(data.type)) {
+      if (['QUIZ_STATE', 'QUIZ_STARTED', 'BUZZER_ACTIVATED', 'SCORES_UPDATED', 'NEW_QUESTION', 'TIMER_UPDATE', 'BUZZER_OPEN', 'QUIZ_ENDED'].includes(data.type)) { // Added QUIZ_ENDED
         setQuizState(data.payload);
+
+        if (data.type === 'QUIZ_ENDED') {
+          // Fetch final scores
+          try {
+            const response = await fetch(`/api/sessions/${sessionId}/scores?mode=${data.payload.scoringMode}`);
+            if (response.ok) {
+              const scoresData = await response.json();
+              const fetchedScores: Record<string, number> = {};
+              scoresData.data.forEach((item: { name: string; score: number }) => {
+                fetchedScores[item.name] = item.score;
+              });
+              setFinalLeaderboardScores(fetchedScores);
+            } else {
+              console.error('Failed to fetch final scores:', response.statusText);
+              setFinalLeaderboardScores(null);
+            }
+          } catch (error) {
+            console.error('Error fetching final scores:', error);
+            setFinalLeaderboardScores(null);
+          }
+        }
       }
     };
 
@@ -114,7 +138,9 @@ export default function PresentationPage() {
       <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
 
       <div className="relative z-10 flex flex-col items-center justify-center h-full p-12">
-        {!quizState ? (
+        {quizState?.isQuizEnded && finalLeaderboardScores ? (
+          <Leaderboard scores={finalLeaderboardScores} />
+        ) : !quizState ? (
           <div className="text-center animate-fade-in">
             <div className="mb-8 inline-block">
               <div className="w-32 h-32 border-8 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
