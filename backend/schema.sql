@@ -67,11 +67,12 @@ CREATE TABLE IF NOT EXISTS student_scores (
     id INT PRIMARY KEY AUTO_INCREMENT,
     student_id VARCHAR(50) NOT NULL,
     session_id VARCHAR(50) NOT NULL,
+    round_number INT NOT NULL DEFAULT 1,
     score INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES students(student_id),
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
-    UNIQUE(student_id, session_id)
+    UNIQUE(student_id, session_id, round_number)
 );
 
 -- 9. department_scores
@@ -79,11 +80,12 @@ CREATE TABLE IF NOT EXISTS department_scores (
     id INT PRIMARY KEY AUTO_INCREMENT,
     department_id INT NOT NULL,
     session_id VARCHAR(50) NOT NULL,
+    round_number INT NOT NULL DEFAULT 1,
     score INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (department_id) REFERENCES departments(id),
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
-    UNIQUE(department_id, session_id)
+    UNIQUE(department_id, session_id, round_number)
 );
 
 -- 10. admins

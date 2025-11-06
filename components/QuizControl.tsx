@@ -287,7 +287,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
         {/* Scores Panel */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
           <div className="p-5 border-b border-gray-200">
-            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Leaderboard</h3>
+            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Current Round Leaderboard</h3>
           </div>
           <div className="p-5">
             {quizState?.scores && Object.keys(quizState.scores).length > 0 ? (

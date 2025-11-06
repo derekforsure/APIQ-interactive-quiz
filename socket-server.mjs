@@ -197,22 +197,51 @@ wss.on('connection', ws => {
         await db_end.execute('UPDATE sessions SET is_active = 0 WHERE id = ?', [sessionId]);
 
         let finalScores = {};
+
+        // Determine the round number
+        const [maxRoundResult] = await db_end.execute(
+          'SELECT MAX(round_number) as max_round FROM student_scores WHERE session_id = ?',
+          [sessionId]
+        );
+        const newRoundNumber = (maxRoundResult[0].max_round || 0) + 1;
+
         if (session.quizState.scoringMode === 'individual') {
           const [studentTotalScores] = await db_end.execute('SELECT student_id, SUM(score) as total_score FROM student_question_scores WHERE session_id = ? GROUP BY student_id', [sessionId]);
           for (const row of studentTotalScores) {
             finalScores[row.student_id] = Number(row.total_score);
+            // Insert or update into student_scores with round_number
+            await db_end.execute(
+              `INSERT INTO student_scores (student_id, session_id, score, round_number)
+               VALUES (?, ?, ?, ?)
+               ON DUPLICATE KEY UPDATE score = VALUES(score)`,
+              [row.student_id, sessionId, Number(row.total_score), newRoundNumber]
+            );
           }
         } else { // department scoring
           const [departmentTotalScores] = await db_end.execute(`
-            SELECT d.name, SUM(sqs.score) as total_score 
+            SELECT d.name, SUM(sqs.score) as total_score, s.department_id
             FROM student_question_scores sqs 
             JOIN students s ON sqs.student_id = s.student_id 
             JOIN departments d ON s.department_id = d.id 
             WHERE sqs.session_id = ? 
-            GROUP BY d.name
+            GROUP BY d.name, s.department_id
           `, [sessionId]);
+          // Determine the round number for department scores
+          const [maxRoundResultDept] = await db_end.execute(
+            'SELECT MAX(round_number) as max_round FROM department_scores WHERE session_id = ?',
+            [sessionId]
+          );
+          const newRoundNumberDept = (maxRoundResultDept[0].max_round || 0) + 1;
+
           for (const row of departmentTotalScores) {
             finalScores[row.name] = Number(row.total_score);
+            // Insert or update into department_scores with round_number
+            await db_end.execute(
+              `INSERT INTO department_scores (department_id, session_id, score, round_number)
+               VALUES (?, ?, ?, ?)
+               ON DUPLICATE KEY UPDATE score = VALUES(score)`,
+              [row.department_id, sessionId, Number(row.total_score), newRoundNumberDept]
+            );
           }
         }
         session.quizState.isQuizStarted = false;
