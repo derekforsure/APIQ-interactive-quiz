@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS questions_bank (
     id INT PRIMARY KEY AUTO_INCREMENT,
     text TEXT NOT NULL,
     answer TEXT NOT NULL,
+    incorrect_option_1 TEXT,
+    incorrect_option_2 TEXT,
+    incorrect_option_3 TEXT,
     category VARCHAR(100) DEFAULT 'General',
     difficulty INT DEFAULT 1,
     round INT DEFAULT 1,
@@ -107,25 +110,4 @@ CREATE TABLE IF NOT EXISTS admins (
     username VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- 11. multiple_choice_questions
-CREATE TABLE IF NOT EXISTS multiple_choice_questions (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    text TEXT NOT NULL,
-    category VARCHAR(100) DEFAULT 'General',
-    difficulty INT DEFAULT 1,
-    round INT DEFAULT 1,
-    topic VARCHAR(100) DEFAULT 'General',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    is_active TINYINT(1) DEFAULT 1
-);
-
--- 12. mcq_options
-CREATE TABLE IF NOT EXISTS mcq_options (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    question_id INT NOT NULL,
-    option_text VARCHAR(255) NOT NULL,
-    is_correct TINYINT(1) NOT NULL DEFAULT 0,
-    FOREIGN KEY (question_id) REFERENCES multiple_choice_questions(id) ON DELETE CASCADE
 );

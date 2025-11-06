@@ -6,6 +6,9 @@ import { successResponse, errorResponse } from '@/lib/apiResponse';
 const questionSchema = z.object({
   text: z.string().min(1, "Question text is required"),
   answer: z.string().min(1, "Answer is required"),
+  incorrect_option_1: z.string().optional().nullable().transform(e => e === "" ? null : e),
+  incorrect_option_2: z.string().optional().nullable().transform(e => e === "" ? null : e),
+  incorrect_option_3: z.string().optional().nullable().transform(e => e === "" ? null : e),
   category: z.string().default('General'),
   difficulty: z.number().int().min(1).max(5).default(1),
   round: z.number().int().min(1).default(1),
@@ -60,12 +63,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const { text, answer, category, difficulty, round, topic, question_type, options } = validationResult.data;
+    const { text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, round, topic, question_type, options } = validationResult.data;
 
     connection = await getConnection();
     const [result] = await connection.execute(
-      'INSERT INTO questions_bank (text, answer, category, difficulty, round, topic, question_type, options) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [text, answer, category, difficulty, round, topic, question_type, options]
+      'INSERT INTO questions_bank (text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, round, topic, question_type, options) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, round, topic, question_type, options]
     );
     
     return successResponse({ message: 'Question added successfully', result }, 'Question added successfully', 201);

@@ -6,12 +6,14 @@ interface Question {
   id: number;
   text: string;
   answer: string;
+  incorrect_option_1: string | null;
+  incorrect_option_2: string | null;
+  incorrect_option_3: string | null;
   category: string;
   difficulty: number;
   round: number;
   topic: string;
   question_type: string;
-  options: string | null;
   created_at: string;
   is_active: number;
 }
@@ -46,12 +48,14 @@ export default function QuestionsPage() {
   const [newQuestion, setNewQuestion] = useState({
     text: '',
     answer: '',
+    incorrect_option_1: '',
+    incorrect_option_2: '',
+    incorrect_option_3: '',
     category: 'General Knowledge',
     difficulty: 1,
     round: 1,
     topic: 'General',
     question_type: 'text',
-    options: ''
   });
 
   const fetchQuestions = useCallback(async () => {
@@ -100,12 +104,14 @@ export default function QuestionsPage() {
     setNewQuestion({
       text: question.text,
       answer: question.answer,
+      incorrect_option_1: question.incorrect_option_1 || '',
+      incorrect_option_2: question.incorrect_option_2 || '',
+      incorrect_option_3: question.incorrect_option_3 || '',
       category: question.category,
       difficulty: question.difficulty,
       round: question.round,
       topic: question.topic,
       question_type: question.question_type,
-      options: question.options || ''
     });
     setShowModal(true);
   };
@@ -115,9 +121,9 @@ export default function QuestionsPage() {
     
     const questionData = {
       ...newQuestion,
-      options: (newQuestion.question_type === 'multiple_choice' && newQuestion.options.trim() !== '') 
-        ? newQuestion.options.trim() 
-        : null
+      incorrect_option_1: newQuestion.incorrect_option_1.trim() !== '' ? newQuestion.incorrect_option_1.trim() : null,
+      incorrect_option_2: newQuestion.incorrect_option_2.trim() !== '' ? newQuestion.incorrect_option_2.trim() : null,
+      incorrect_option_3: newQuestion.incorrect_option_3.trim() !== '' ? newQuestion.incorrect_option_3.trim() : null,
     };
     
     const url = editingQuestion ? '/api/questions/update' : '/api/questions';
@@ -139,12 +145,14 @@ export default function QuestionsPage() {
       setNewQuestion({
         text: '',
         answer: '',
+        incorrect_option_1: '',
+        incorrect_option_2: '',
+        incorrect_option_3: '',
         category: 'General Knowledge',
         difficulty: 1,
         round: 1,
         topic: 'General',
         question_type: 'text',
-        options: ''
       });
     } else {
       const error = await res.json();
@@ -158,12 +166,14 @@ export default function QuestionsPage() {
     setNewQuestion({
       text: '',
       answer: '',
+      incorrect_option_1: '',
+      incorrect_option_2: '',
+      incorrect_option_3: '',
       category: 'General Knowledge',
       difficulty: 1,
       round: 1,
       topic: 'General',
       question_type: 'text',
-      options: ''
     });
   };
 
@@ -211,6 +221,15 @@ export default function QuestionsPage() {
                   Answer
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Incorrect Option 1
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Incorrect Option 2
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Incorrect Option 3
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -235,6 +254,21 @@ export default function QuestionsPage() {
                   <td className="px-6 py-4 text-sm text-gray-600">
                     <div className="max-w-xs truncate" title={question.answer}>
                       {question.answer}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    <div className="max-w-xs truncate" title={question.incorrect_option_1 || ''}>
+                      {question.incorrect_option_1}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    <div className="max-w-xs truncate" title={question.incorrect_option_2 || ''}>
+                      {question.incorrect_option_2}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    <div className="max-w-xs truncate" title={question.incorrect_option_3 || ''}>
+                      {question.incorrect_option_3}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -400,15 +434,37 @@ export default function QuestionsPage() {
                   </div>
 
                   {newQuestion.question_type === 'multiple_choice' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Options (JSON format)</label>
-                      <textarea
-                        value={newQuestion.options}
-                        onChange={(e) => setNewQuestion({ ...newQuestion, options: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-mono text-sm"
-                        rows={3}
-                        placeholder='["Option A", "Option B", "Option C", "Option D"]'
-                      />
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Incorrect Option 1</label>
+                        <input
+                          type="text"
+                          value={newQuestion.incorrect_option_1}
+                          onChange={(e) => setNewQuestion({ ...newQuestion, incorrect_option_1: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                          placeholder="Enter incorrect option 1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Incorrect Option 2</label>
+                        <input
+                          type="text"
+                          value={newQuestion.incorrect_option_2}
+                          onChange={(e) => setNewQuestion({ ...newQuestion, incorrect_option_2: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                          placeholder="Enter incorrect option 2"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Incorrect Option 3</label>
+                        <input
+                          type="text"
+                          value={newQuestion.incorrect_option_3}
+                          onChange={(e) => setNewQuestion({ ...newQuestion, incorrect_option_3: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                          placeholder="Enter incorrect option 3"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
