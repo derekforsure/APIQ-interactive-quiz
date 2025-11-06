@@ -79,6 +79,35 @@ export async function POST(request: Request) {
       [studentId, sessionId, totalScore]
     );
 
+    // Get student's department_id
+    const [studentDepartmentRows] = await connection.execute<RowDataPacket[]>(
+      "SELECT department_id FROM students WHERE student_id = ?",
+      [studentId]
+    );
+
+    if (studentDepartmentRows.length > 0 && studentDepartmentRows[0].department_id) {
+      const departmentId = studentDepartmentRows[0].department_id;
+
+      // Recalculate total score for the department in the session
+      const [totalDepartmentScores] = await connection.execute<RowDataPacket[]>(
+        `SELECT SUM(ss.score) as score
+         FROM student_scores ss
+         JOIN students s ON ss.student_id = s.student_id
+         WHERE s.department_id = ? AND ss.session_id = ?`,
+        [departmentId, sessionId]
+      );
+
+      const totalDepartmentScore = totalDepartmentScores[0].score || 0;
+
+      // Update or insert the department's total score
+      await connection.execute(
+        `INSERT INTO department_scores (department_id, session_id, score)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE score = VALUES(score)`,
+        [departmentId, sessionId, totalDepartmentScore]
+      );
+    }
+
     return successResponse(
       { correct: newScoreForQuestion > 0, score: newScoreForQuestion },
       "Answer submitted successfully"

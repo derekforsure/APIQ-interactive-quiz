@@ -36,7 +36,20 @@ CREATE TABLE IF NOT EXISTS session_participants (
 );
 
 -- 5. questions_bank
-iu
+CREATE TABLE IF NOT EXISTS questions_bank (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    text TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    incorrect_option_1 TEXT,
+    incorrect_option_2 TEXT,
+    incorrect_option_3 TEXT,
+    category VARCHAR(100) DEFAULT 'General',
+    difficulty INT DEFAULT 1,
+    topic VARCHAR(100) DEFAULT 'General',
+    question_type VARCHAR(50) DEFAULT 'text',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_active TINYINT(1) DEFAULT 1
+);
 
 -- 6. session_questions
 CREATE TABLE IF NOT EXISTS session_questions (
@@ -67,12 +80,11 @@ CREATE TABLE IF NOT EXISTS student_scores (
     id INT PRIMARY KEY AUTO_INCREMENT,
     student_id VARCHAR(50) NOT NULL,
     session_id VARCHAR(50) NOT NULL,
-    round_number INT NOT NULL DEFAULT 1,
     score INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES students(student_id),
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
-    UNIQUE(student_id, session_id, round_number)
+    UNIQUE(student_id, session_id)
 );
 
 -- 9. department_scores
@@ -80,12 +92,11 @@ CREATE TABLE IF NOT EXISTS department_scores (
     id INT PRIMARY KEY AUTO_INCREMENT,
     department_id INT NOT NULL,
     session_id VARCHAR(50) NOT NULL,
-    round_number INT NOT NULL DEFAULT 1,
     score INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (department_id) REFERENCES departments(id),
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
-    UNIQUE(department_id, session_id, round_number)
+    UNIQUE(department_id, session_id)
 );
 
 -- 10. admins

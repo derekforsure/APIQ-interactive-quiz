@@ -268,7 +268,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
                   onClick={() => sendCommand('START_QUIZ')}
                   className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
                 >
-                  Start New Quiz
+                  Restart Quiz
                 </button>
               ) : Boolean(!quizState?.isQuizStarted && !isQuizEnded) ? (
                 <button
