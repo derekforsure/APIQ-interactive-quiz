@@ -29,6 +29,7 @@ interface QuizControlProps {
 export default function QuizControl({ sessionId, onScoringModeChange }: QuizControlProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [quizState, setQuizState] = useState<QuizState | null>(null);
+  const [finalLeaderboardScores, setFinalLeaderboardScores] = useState<Record<string, number> | null>(null);
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const ws = useRef<WebSocket | null>(null);
@@ -68,12 +69,34 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
       ws.current?.send(JSON.stringify({ type: 'REGISTER', payload: { role: 'admin', sessionId } }));
     };
 
-    ws.current.onmessage = (event) => {
+    ws.current.onmessage = async (event) => {
       const data = JSON.parse(event.data);
       if (['QUIZ_STATE', 'QUIZ_STARTED', 'BUZZER_ACTIVATED', 'SCORES_UPDATED', 'NEW_QUESTION', 'TIMER_UPDATE', 'BUZZER_OPEN', 'QUIZ_ENDED'].includes(data.type)) {
         setQuizState(data.payload);
         if (data.payload.scoringMode && onScoringModeChange) {
           onScoringModeChange(data.payload.scoringMode);
+        }
+
+        if (data.type === 'QUIZ_ENDED') {
+          try {
+            const response = await fetch(`/api/sessions/${sessionId}/scores?mode=${data.payload.scoringMode}`);
+            if (response.ok) {
+              const scoresData = await response.json();
+              const fetchedScores: Record<string, number> = {};
+              scoresData.data.forEach((item: { name: string; score: number }) => {
+                fetchedScores[item.name] = item.score;
+              });
+              setFinalLeaderboardScores(fetchedScores);
+            } else {
+              console.error('Failed to fetch final scores:', response.statusText);
+              setFinalLeaderboardScores(null);
+            }
+          } catch (error) {
+            console.error('Error fetching final scores:', error);
+            setFinalLeaderboardScores(null);
+          }
+        } else if (data.type === 'START_QUIZ') {
+          setFinalLeaderboardScores(null); // Clear final scores when a new quiz starts
         }
       }
     };
@@ -287,10 +310,33 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
         {/* Scores Panel */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
           <div className="p-5 border-b border-gray-200">
-            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Current Round Leaderboard</h3>
+            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+              {isQuizEnded ? 'Final Leaderboard' : 'Current Round Leaderboard'}
+            </h3>
           </div>
           <div className="p-5">
-            {quizState?.scores && Object.keys(quizState.scores).length > 0 ? (
+            {(isQuizEnded && finalLeaderboardScores) ? (
+              <div className="space-y-2">
+                {Object.entries(finalLeaderboardScores)
+                  .sort(([, scoreA], [, scoreB]) => scoreB - scoreA)
+                  .map(([name, score], index) => (
+                    <div key={name} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                      <div className="flex items-center gap-3">
+                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold ${
+                          index === 0 ? 'bg-amber-100 text-amber-800' :
+                          index === 1 ? 'bg-gray-100 text-gray-800' :
+                          index === 2 ? 'bg-orange-100 text-orange-800' :
+                          'bg-gray-50 text-gray-600'
+                        }`}>
+                          {index + 1}
+                        </span>
+                        <span className="text-sm text-gray-900">{name}</span>
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900">{score}</span>
+                    </div>
+                  ))}
+              </div>
+            ) : (quizState?.scores && Object.keys(quizState.scores).length > 0) ? (
               <div className="space-y-2">
                 {Object.entries(quizState.scores)
                   .sort(([, scoreA], [, scoreB]) => scoreB - scoreA)
