@@ -409,8 +409,7 @@ export default function QuestionsPage() {
                           const newType = e.target.value;
                           setNewQuestion({ 
                             ...newQuestion, 
-                            question_type: newType,
-                            options: newType === 'multiple_choice' ? newQuestion.options : ''
+                            question_type: newType
                           });
                         }}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"

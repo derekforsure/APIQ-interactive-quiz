@@ -16,18 +16,6 @@ const updateQuestionSchema = z.object({
   round: z.number().int().min(1).optional(),
   topic: z.string().optional(),
   question_type: z.string().optional(),
-  options: z.string().optional().nullable().transform(e => e === "" ? null : e).refine(val => {
-    if (val === null) return true; // Null is allowed
-    if (typeof val !== 'string') return false; // Only allow string
-    try {
-      JSON.parse(val);
-      return true;
-    } catch {
-      return false;
-    }
-  }, {
-    message: "Options must be a valid JSON string or null/empty string",
-  }),
 }).strict().refine(data => Object.keys(data).length > 1, {
   message: "At least one field other than 'id' must be provided for update",
   path: ["_general"],

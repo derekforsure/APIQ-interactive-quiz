@@ -48,7 +48,6 @@ CREATE TABLE IF NOT EXISTS questions_bank (
     round INT DEFAULT 1,
     topic VARCHAR(100) DEFAULT 'General',
     question_type VARCHAR(50) DEFAULT 'text',
-    options TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     is_active TINYINT(1) DEFAULT 1
 );
