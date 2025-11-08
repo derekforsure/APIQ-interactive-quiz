@@ -9,6 +9,9 @@ interface Question {
   id: number;
   text: string;
   answer: string;
+  incorrect_option_1: string;
+  incorrect_option_2: string;
+  incorrect_option_3: string;
 }
 
 interface QuizState {
@@ -20,7 +23,18 @@ interface QuizState {
   remainingTime: number;
   showAnswer: boolean;
   isQuizEnded: boolean; // Added
+  isQuizStarted: boolean; // Added
 }
+
+// Utility function to shuffle an array
+const shuffleArray = (array: any[]) => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
 
 export default function PresentationPage() {
   const params = useParams();
@@ -31,6 +45,20 @@ export default function PresentationPage() {
   const [loading, setLoading] = useState(true);
   const ws = useRef<WebSocket | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
+
+  const currentQuestion = questions[quizState?.currentQuestionIndex ?? 0];
+
+  useEffect(() => {
+    if (currentQuestion) {
+      setShuffledOptions(shuffleArray([
+        currentQuestion.answer,
+        currentQuestion.incorrect_option_1,
+        currentQuestion.incorrect_option_2,
+        currentQuestion.incorrect_option_3,
+      ]));
+    }
+  }, [currentQuestion]);
 
   useEffect(() => {
     if (!audioRef.current) {
@@ -122,8 +150,8 @@ export default function PresentationPage() {
     return <Skeleton className="h-screen w-full bg-gray-900" />;
   }
 
-  const currentQuestion = questions[quizState?.currentQuestionIndex ?? 0];
   const timerExpired = quizState && quizState.remainingTime <= 0;
+  const showAnswerHighlight = quizState?.showAnswer || (timerExpired && !quizState?.activeStudent);
 
   return (
     <div className="relative bg-gradient-to-br from-blue-950 via-indigo-900 to-blue-900 text-white h-screen overflow-hidden">
@@ -140,7 +168,7 @@ export default function PresentationPage() {
       <div className="relative z-10 flex flex-col items-center justify-center h-full p-12">
         {quizState?.isQuizEnded && finalLeaderboardScores ? (
           <Leaderboard scores={finalLeaderboardScores} />
-        ) : !quizState ? (
+        ) : !quizState || !quizState.isQuizStarted ? ( // Check if quiz is not started
           <div className="text-center animate-fade-in">
             <div className="mb-8 inline-block">
               <div className="w-32 h-32 border-8 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
@@ -168,21 +196,27 @@ export default function PresentationPage() {
               </div>
             )}
             
-            {/* Answer or Timer display */}
-            {quizState.showAnswer && currentQuestion ? (
-              <div className="animate-bounce-in">
-                <div className="inline-block px-12 py-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-3xl shadow-2xl transform animate-pulse">
-                  <p className="text-6xl font-bold">Answer: {currentQuestion.answer}</p>
-                </div>
+            {/* Answer Options */}
+            {currentQuestion && (
+              <div className="grid grid-cols-2 gap-6 mt-12">
+                {shuffledOptions.map((option, index) => (
+                  <div
+                    key={index}
+                    className={`p-8 rounded-2xl shadow-xl transition-all duration-300 
+                      ${showAnswerHighlight && option === currentQuestion.answer
+                        ? 'bg-emerald-600 scale-105'
+                        : 'bg-white/10 hover:bg-white/20'
+                      }`}
+                  >
+                    <p className="text-3xl font-bold">{option}</p>
+                  </div>
+                ))}
               </div>
-            ) : timerExpired && !quizState.activeStudent && currentQuestion ? (
-              <div className="animate-bounce-in">
-                <div className="inline-block px-12 py-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-3xl shadow-2xl">
-                  <p className="text-6xl font-bold">Answer: {currentQuestion.answer}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="relative inline-block">
+            )}
+
+            {/* Timer display */}
+            {!showAnswerHighlight && quizState.isQuizStarted && !quizState.isQuizEnded && (
+              <div className="relative inline-block mt-12">
                 <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full blur-xl opacity-50 animate-pulse"></div>
                 <div className="relative px-16 py-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full shadow-2xl">
                   <div className="text-9xl font-bold font-mono tabular-nums">
