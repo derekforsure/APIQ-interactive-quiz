@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import Scoreboard from '@/components/Scoreboard';
 import QuizControl from '@/components/QuizControl';
 import SessionQrCode from '@/components/SessionQrCode';
+import SessionScoresChart from '@/components/SessionScoresChart';
 
 interface Participant {
   student_id: string;
@@ -56,7 +57,7 @@ export default function SessionParticipantsPage() {
   const [selectedQuestionToAdd, setSelectedQuestionToAdd] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTab, setSelectedTab] = useState<'quiz-control' | 'questions' | 'participants' | 'scoreboard'>('quiz-control');
+  const [selectedTab, setSelectedTab] = useState<'quiz-control' | 'questions' | 'participants' | 'scoreboard' | 'score-over-time'>('quiz-control');
   const [currentScoringMode, setCurrentScoringMode] = useState<'individual' | 'department'>('individual');
 
   const fetchSessionDetails = useCallback(async () => {
@@ -294,6 +295,16 @@ export default function SessionParticipantsPage() {
           >
             Scoreboard
           </button>
+          <button
+            onClick={() => setSelectedTab('score-over-time')}
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              selectedTab === 'score-over-time'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Score Over Time
+          </button>
         </nav>
       </div>
 
@@ -477,6 +488,12 @@ export default function SessionParticipantsPage() {
         {selectedTab === 'quiz-control' && (
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
             <QuizControl sessionId={sessionId} onScoringModeChange={handleScoringModeChange} />
+          </div>
+        )}
+
+        {selectedTab === 'score-over-time' && (
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+            <SessionScoresChart sessionId={sessionId} />
           </div>
         )}
       </div>

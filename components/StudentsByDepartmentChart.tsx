@@ -37,7 +37,7 @@ const StudentsByDepartmentChart = () => {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className='mb-5'>
         <CardTitle>Students by Department</CardTitle>
       </CardHeader>
       <CardContent>
