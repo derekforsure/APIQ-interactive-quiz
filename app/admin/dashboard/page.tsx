@@ -1,4 +1,5 @@
 import StatCard from '@/components/StatCard';
+import StudentsByDepartmentChart from '@/components/StudentsByDepartmentChart';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
@@ -41,13 +42,8 @@ export default async function AdminDashboard() {
         <StatCard title="Total Students" fetchData={getTotalStudents} color="text-orange-600" />
       </div>
       
-      <div className="bg-white rounded-lg border shadow-sm">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">Recent Activity</h2>
-        </div>
-        <div className="p-6">
-          <p className="text-gray-600">Dashboard content will be displayed here...</p>
-        </div>
+      <div>
+        <StudentsByDepartmentChart/>
       </div>
     </div>
   )
