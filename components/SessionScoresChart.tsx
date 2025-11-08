@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -10,35 +9,21 @@ interface ScoreData {
 }
 
 interface SessionScoresChartProps {
-  sessionId: string;
+  scoresOverTime: ScoreData[];
 }
 
-const SessionScoresChart = ({ sessionId }: SessionScoresChartProps) => {
-  const [data, setData] = useState<ScoreData[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!sessionId) return;
-
-    const fetchData = async () => {
-      try {
-        const res = await fetch(`/api/sessions/${sessionId}/scores-over-time`);
-        const result = await res.json();
-        if (result.success) {
-          setData(result.data.scoresOverTime);
-        }
-      } catch (error) {
-        console.error('Failed to fetch session scores data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [sessionId]);
-
-  if (loading) {
-    return <div>Loading chart...</div>;
+const SessionScoresChart = ({ scoresOverTime }: SessionScoresChartProps) => {
+  if (!scoresOverTime || scoresOverTime.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="mb-5">
+          <CardTitle>Session Score Over Time</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-500">No score data available for this session yet.</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -48,7 +33,7 @@ const SessionScoresChart = ({ sessionId }: SessionScoresChartProps) => {
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data}>
+          <LineChart data={scoresOverTime}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="time" />
             <YAxis />

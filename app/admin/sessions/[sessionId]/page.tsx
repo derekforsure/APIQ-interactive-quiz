@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import Scoreboard from '@/components/Scoreboard';
 import QuizControl from '@/components/QuizControl';
 import SessionQrCode from '@/components/SessionQrCode';
-import SessionScoresChart from '@/components/SessionScoresChart';
+import SessionScoreOverview from '@/components/SessionScoreOverview';
 
 interface Participant {
   student_id: string;
@@ -493,7 +493,7 @@ export default function SessionParticipantsPage() {
 
         {selectedTab === 'score-over-time' && (
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-            <SessionScoresChart sessionId={sessionId} />
+            <SessionScoreOverview sessionId={sessionId} />
           </div>
         )}
       </div>
