@@ -6,11 +6,13 @@ interface Question {
   id: number;
   text: string;
   answer: string;
+  incorrect_option_1: string;
+  incorrect_option_2: string;
+  incorrect_option_3: string;
   category: string;
   difficulty: number;
   topic: string;
   question_type: string;
-  options: string | null;
   created_at: string;
   is_active: number;
 }

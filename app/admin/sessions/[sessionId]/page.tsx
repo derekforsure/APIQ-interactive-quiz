@@ -15,11 +15,13 @@ interface Question {
   id: number;
   text: string;
   answer: string;
+  incorrect_option_1: string;
+  incorrect_option_2: string;
+  incorrect_option_3: string;
   category: string;
   difficulty: number;
   topic: string;
   question_type: string;
-  options: string | null;
   created_at: string;
   is_active: number;
 }
@@ -428,7 +430,7 @@ export default function SessionParticipantsPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Question
+                        Question & Answers
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Category
@@ -444,22 +446,28 @@ export default function SessionParticipantsPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {sessionQuestions.map((question) => (
                       <tr key={question.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          <div className="max-w-md truncate font-medium" title={question.text}>
+                        <td className="px-6 py-4 text-sm text-gray-900 align-top">
+                          <div className="max-w-md font-medium" title={question.text}>
                             {question.text}
                           </div>
+                          <ul className="mt-2 space-y-1 text-xs">
+                            <li className="text-emerald-700 font-semibold">✓ {question.answer}</li>
+                            <li className="text-red-700">✗ {question.incorrect_option_1}</li>
+                            <li className="text-red-700">✗ {question.incorrect_option_2}</li>
+                            <li className="text-red-700">✗ {question.incorrect_option_3}</li>
+                          </ul>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap align-top">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${categoryColors[question.category] || 'bg-gray-100 text-gray-700'}`}>
                             {question.category}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap align-top">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${difficultyColors[question.difficulty as keyof typeof difficultyColors]}`}>
                             {question.difficulty === 1 ? 'Easy' : question.difficulty === 2 ? 'Medium' : 'Hard'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <td className="px-6 py-4 whitespace-nowrap text-right align-top">
                           <button
                             onClick={() => handleRemoveSessionQuestion(question.id)}
                             className="text-gray-600 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
