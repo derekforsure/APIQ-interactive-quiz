@@ -5,7 +5,8 @@ import {
   Settings, 
   ChevronRight,
   Building2,
-  BookUser
+  BookUser,
+  HelpCircle
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image";
@@ -53,6 +54,11 @@ const platformItems = [
     title: "Settings",
     url: "/admin/settings",
     icon: Settings,
+  },
+  {
+    title: "Help",
+    url: "/admin/help",
+    icon: HelpCircle,
   },
 ]
 

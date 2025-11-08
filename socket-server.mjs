@@ -124,6 +124,19 @@ wss.on('connection', ws => {
         broadcast({ type: 'QUIZ_STARTED', payload: getCleanQuizState() });
         break;
 
+      case 'RESET_STATE':
+        clearInterval(session.quizState.timerId);
+        session.quizState.isQuizStarted = false;
+        session.quizState.isQuizEnded = false;
+        session.quizState.isBuzzerActive = false;
+        session.quizState.remainingTime = 10000;
+        session.quizState.showAnswer = false;
+        session.quizState.ineligibleStudents = [];
+        session.quizState.currentQuestionIndex = 0;
+        session.quizState.scores = {};
+        broadcast({ type: 'QUIZ_STATE', payload: getCleanQuizState() });
+        break;
+
       case 'NEXT_QUESTION':
         clearInterval(session.quizState.timerId);
         session.quizState.currentQuestionIndex += 1;

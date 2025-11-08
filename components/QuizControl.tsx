@@ -135,6 +135,12 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
     }
   };
 
+  const handleEndQuiz = () => {
+    if (confirm('Are you sure you want to end the quiz?')) {
+      sendCommand('END_QUIZ');
+    }
+  };
+
   const handleJudgeAnswer = (correct: boolean) => {
     if (quizState?.activeStudent) {
       if (correct) {
@@ -153,6 +159,26 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
     }
   };
 
+  const handleResetScores = async () => {
+    if (confirm('Are you sure you want to permanently reset all scores for this session? This action cannot be undone.')) {
+      try {
+        const response = await fetch(`/api/sessions/${sessionId}/reset-scores`, {
+          method: 'POST',
+        });
+        if (response.ok) {
+          // Also reset the in-memory state
+          sendCommand('RESET_STATE');
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to reset scores');
+        }
+      } catch (err) {
+        alert(`Failed to reset scores: ${(err as Error).message}`);
+        console.error('Error resetting scores:', err);
+      }
+    }
+  };
+
   const openPresentationView = () => {
     window.open(`/presentation/${sessionId}`, '_blank');
   };
@@ -168,6 +194,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
 
   const currentQuestion = questions[quizState?.currentQuestionIndex ?? 0];
   const isQuizEnded = quizState?.isQuizEnded;
+  const isQuizStarted = quizState?.isQuizStarted;
 
   return (
     <div className="space-y-6">
@@ -176,7 +203,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Quiz Control Panel</h2>
           <p className="text-sm text-gray-600 mt-1">
-            {quizState?.isQuizEnded ? 'Quiz Ended' : quizState?.isQuizStarted ? 'In Progress' : 'Not Started'}
+            {isQuizEnded ? 'Quiz Ended' : isQuizStarted ? 'In Progress' : 'Not Started'}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -186,7 +213,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
               value={quizState?.scoringMode || 'individual'}
               onChange={(e) => handleScoringModeChange(e.target.value as 'individual' | 'department')}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={Boolean(quizState?.isQuizStarted)}
+              disabled={Boolean(isQuizStarted)}
             >
               <option value="individual">Individual</option>
               <option value="department">Department</option>
@@ -220,7 +247,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
                 <p className="text-lg font-semibold text-gray-900 mt-4">Quiz Completed</p>
                 <p className="text-sm text-gray-500 mt-1">All questions have been answered</p>
               </div>
-            ) : quizState?.isQuizStarted ? (
+            ) : isQuizStarted ? (
               currentQuestion ? (
                 <div className="space-y-6">
                   <div>
@@ -263,14 +290,8 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
           </div>
           <div className="p-5 border-t border-gray-200 space-y-2">
             <div className="flex gap-2">
-              {isQuizEnded ? (
-                <button
-                  onClick={() => sendCommand('START_QUIZ')}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
-                >
-                  Restart Quiz
-                </button>
-              ) : Boolean(!quizState?.isQuizStarted && !isQuizEnded) ? (
+              {/* Start Quiz Button */}
+              {Boolean(!isQuizStarted && !isQuizEnded) && (
                 <button
                   onClick={() => sendCommand('START_QUIZ')}
                   disabled={Boolean(!isConnected || !quizState)}
@@ -278,30 +299,47 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
                 >
                   Start Quiz
                 </button>
-              ) : (
-                <>
-                  <button
-                    onClick={handleNextQuestion}
-                    disabled={Boolean(!quizState?.isQuizStarted || quizState.currentQuestionIndex >= questions.length - 1 || !!quizState.activeStudent || isQuizEnded)}
-                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Next Question
-                  </button>
-                  <button
-                    onClick={() => sendCommand('TOGGLE_ANSWER_VISIBILITY')}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    {quizState?.showAnswer ? 'Hide' : 'Reveal'}
-                  </button>
-                </>
+              )}
+
+              {/* Next Question Button */}
+              {Boolean(isQuizStarted && !isQuizEnded) && (
+                <button
+                  onClick={handleNextQuestion}
+                  disabled={Boolean(quizState.currentQuestionIndex >= questions.length - 1 || !!quizState.activeStudent)}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next Question
+                </button>
+              )}
+
+              {/* Reveal/Hide Answer Button */}
+              {Boolean(isQuizStarted && !isQuizEnded) && (
+                <button
+                  onClick={() => sendCommand('TOGGLE_ANSWER_VISIBILITY')}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  {quizState?.showAnswer ? 'Hide' : 'Reveal'}
+                </button>
               )}
             </div>
-            {Boolean(quizState?.isQuizStarted && !isQuizEnded) && (
+
+            {/* End Quiz Button */}
+            {Boolean(isQuizStarted && !isQuizEnded) && (
               <button
-                onClick={() => sendCommand('END_QUIZ')}
+                onClick={handleEndQuiz}
                 className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 End Quiz
+              </button>
+            )}
+
+            {/* Reset Scores Button */}
+            {isQuizEnded && (
+              <button
+                onClick={handleResetScores}
+                className="w-full px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Reset Scores
               </button>
             )}
           </div>
