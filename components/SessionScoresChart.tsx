@@ -5,14 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface ScoreData {
   time: string;
-  score: number;
+  [student: string]: number | string;
 }
 
 interface SessionScoresChartProps {
   scoresOverTime: ScoreData[];
+  students: string[];
 }
 
-const SessionScoresChart = ({ scoresOverTime }: SessionScoresChartProps) => {
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A4DE6C', '#D0ED57'];
+
+const SessionScoresChart = ({ scoresOverTime, students }: SessionScoresChartProps) => {
   if (!scoresOverTime || scoresOverTime.length === 0) {
     return (
       <Card>
@@ -29,7 +32,7 @@ const SessionScoresChart = ({ scoresOverTime }: SessionScoresChartProps) => {
   return (
     <Card>
       <CardHeader className="mb-5">
-        <CardTitle>Session Score Over Time</CardTitle>
+        <CardTitle>Individual Student Scores Over Time</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
@@ -39,7 +42,15 @@ const SessionScoresChart = ({ scoresOverTime }: SessionScoresChartProps) => {
             <YAxis />
             <Tooltip />
             <Legend />
-            <Line type="monotone" dataKey="score" stroke="#8884d8" name="Cumulative Score" />
+            {students.map((student, index) => (
+              <Line
+                key={student}
+                type="monotone"
+                dataKey={student}
+                stroke={COLORS[index % COLORS.length]}
+                name={student}
+              />
+            ))}
           </LineChart>
         </ResponsiveContainer>
       </CardContent>

@@ -6,7 +6,7 @@ import SessionScoreBreakdownTable from './SessionScoreBreakdownTable';
 
 interface ScoreData {
   time: string;
-  score: number;
+  [student: string]: number | string;
 }
 
 interface QuestionBreakdownData {
@@ -21,6 +21,7 @@ interface SessionScoreOverviewProps {
 
 const SessionScoreOverview = ({ sessionId }: SessionScoreOverviewProps) => {
   const [scoresOverTime, setScoresOverTime] = useState<ScoreData[]>([]);
+  const [students, setStudents] = useState<string[]>([]);
   const [questionBreakdown, setQuestionBreakdown] = useState<QuestionBreakdownData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +35,7 @@ const SessionScoreOverview = ({ sessionId }: SessionScoreOverviewProps) => {
         const result = await res.json();
         if (result.success) {
           setScoresOverTime(result.data.scoresOverTime);
+          setStudents(result.data.students);
           setQuestionBreakdown(result.data.questionBreakdown);
         } else {
           setError(result.message || 'Failed to fetch session score data');
@@ -59,7 +61,7 @@ const SessionScoreOverview = ({ sessionId }: SessionScoreOverviewProps) => {
 
   return (
     <div className="space-y-6">
-      <SessionScoresChart sessionId={sessionId} scoresOverTime={scoresOverTime} />
+      <SessionScoresChart scoresOverTime={scoresOverTime} students={students} />
       <SessionScoreBreakdownTable questionBreakdown={questionBreakdown} />
     </div>
   );

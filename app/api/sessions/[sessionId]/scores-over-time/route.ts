@@ -1,6 +1,13 @@
 import { getConnection } from '@/utils/db';
 import { successResponse, errorResponse } from '@/lib/apiResponse';
 import { NextRequest } from 'next/server';
+import { RowDataPacket } from 'mysql2';
+
+interface ScoreEvent extends RowDataPacket {
+  student_name: string;
+  score: number;
+  created_at: Date;
+}
 
 export async function GET(request: NextRequest, { params }: { params: { sessionId: string } }) {
   const { sessionId } = params;
@@ -9,27 +16,29 @@ export async function GET(request: NextRequest, { params }: { params: { sessionI
   try {
     connection = await getConnection();
 
-    // Query for cumulative scores over time (for the chart)
-    const [cumulativeRows] = await connection.execute(`
+    // Get all raw score events for the session
+    const [scoreEvents] = await connection.execute<ScoreEvent[]>(`
       SELECT
-        t.answered_at,
-        SUM(t.score) OVER (ORDER BY t.answered_at) as cumulative_score
-      FROM (
-        SELECT
-          MIN(sqs.created_at) as answered_at,
-          sqs.question_id,
-          SUM(sqs.score) as score
-        FROM student_question_scores sqs
-        WHERE sqs.session_id = ?
-        GROUP BY sqs.question_id
-      ) as t
-      ORDER BY t.answered_at;
+          s.name as student_name,
+          sqs.score,
+          sqs.created_at
+      FROM student_question_scores sqs
+      JOIN students s ON sqs.student_id = s.student_id
+      WHERE sqs.session_id = ?
+      ORDER BY sqs.created_at;
     `, [sessionId]);
 
-    const scoresOverTime = (cumulativeRows as any[]).map(row => ({
-      time: new Date(row.answered_at).toLocaleTimeString(),
-      score: row.cumulative_score,
-    }));
+    const studentNames = [...new Set(scoreEvents.map(e => e.student_name))];
+    const studentScores: Record<string, number> = {};
+    studentNames.forEach(name => studentScores[name] = 0);
+
+    const scoresOverTime = scoreEvents.map(event => {
+      studentScores[event.student_name] += event.score;
+      return {
+        time: new Date(event.created_at).toLocaleTimeString(),
+        ...studentScores
+      };
+    });
 
     // Query for question-by-question breakdown (for the table)
     const [breakdownRows] = await connection.execute(`
@@ -50,7 +59,7 @@ export async function GET(request: NextRequest, { params }: { params: { sessionI
       answered_at: new Date(row.answered_at).toLocaleString(),
     }));
 
-    return successResponse({ scoresOverTime, questionBreakdown }, 'Session scores and breakdown fetched successfully');
+    return successResponse({ scoresOverTime, students: studentNames, questionBreakdown }, 'Session scores and breakdown fetched successfully');
   } catch (error) {
     console.error(error);
     return errorResponse('Internal server error', 500);
