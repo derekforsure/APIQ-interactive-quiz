@@ -60,8 +60,8 @@ Built with cutting-edge web technologies, APIQ combines real-time WebSocket comm
 ## 🛠️ Technology Stack
 
 **Frontend**
-- **Next.js 14+** - React framework for production-grade applications
-- **React 18+** - Dynamic user interfaces
+- **Next.js 15.5.3** - React framework for production-grade applications
+- **React 19.1.0** - Dynamic user interfaces
 - **TypeScript** - Type-safe, maintainable code
 - **Tailwind CSS** - Utility-first styling framework
 - **Zod** - Schema validation and type checking
@@ -111,7 +111,15 @@ Ensure you have the following installed:
    ```
    Then, fill in the required values in the `.env` file.
 
-4. **Initialize the database:**
+4. **(Optional) Setup with Docker Compose:**
+
+   If you prefer to use Docker for your database and Redis, ensure Docker is running and then execute:
+   ```bash
+   docker-compose up -d
+   ```
+   This will start MySQL and Redis services. You can then skip steps 5 and 6 for manual database/Redis setup.
+
+5. **Initialize the database:**
    ```bash
    # Create the database
    mysql -u root -p -e "CREATE DATABASE quiz_app;"
@@ -123,7 +131,7 @@ Ensure you have the following installed:
    node populate-questions.js
    ```
 
-5. **Start the development server:**
+6. **Start the development server:**
 
    ```bash
    npm run dev
@@ -163,14 +171,37 @@ Display quiz questions and leaderboards on a projector or external screen:
 
 ```
 APIQ-interactive-quiz/
-├── app/                  # Next.js App Router pages and API routes
-├── backend/              # Database schema
-├── components/           # Reusable React components
-├── public/               # Static assets (images, sounds)
-├── .env.sample           # Sample environment variables
-├── populate-questions.js # Script to seed the database with questions
-├── socket-server.mjs     # WebSocket server
-└── package.json          # Dependencies and scripts
+├── app/                      # Next.js App Router: pages, layouts, and API routes
+│   ├── api/                  # Backend API routes
+│   │   ├── departments/      # API for department management
+│   │   ├── login/            # API for user authentication
+│   │   ├── questions/        # API for question bank management
+│   │   ├── quiz/             # API for quiz submission and logic
+│   │   ├── sessions/         # API for quiz session management
+│   │   ├── stats/            # API for fetching application statistics
+│   │   ├── students/         # API for student management
+│   │   └── user/             # API for user-specific data
+│   ├── admin/                # Admin dashboard pages and layouts
+│   │   ├── dashboard/        # Admin dashboard overview
+│   │   ├── departments/      # Admin department management
+│   │   ├── questions/        # Admin question bank management
+│   │   └── sessions/         # Admin quiz session management
+│   ├── join/                 # Public page for students to join a quiz
+│   ├── login/                # User login page
+│   ├── presentation/         # Public presentation mode for quiz sessions
+│   └── student/              # Student-facing pages and dashboard
+├── backend/                  # Database schema and related scripts
+│   └── schema.sql            # MySQL database schema definition
+├── components/               # Reusable React components
+│   └── ui/                   # Shadcn/ui components
+├── hooks/                    # Custom React hooks
+├── lib/                      # Utility functions, API response helpers, session management
+├── public/                   # Static assets (images, sounds, fonts)
+├── utils/                    # Backend utilities (e.g., database connection)
+├── .env.sample               # Sample environment variables file
+├── populate-questions.js     # Script to seed the database with sample questions
+├── socket-server.mjs         # Standalone WebSocket server for real-time communication
+└── package.json              # Project dependencies and scripts
 ```
 
 ---
