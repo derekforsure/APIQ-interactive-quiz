@@ -4,7 +4,7 @@
 
 <div align="center">
   <img src="public/logo.svg" alt="APIQ Logo" width="500" />
-  
+
   **Transform learning and assessment with real-time, interactive quizzes**
   
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
@@ -19,6 +19,8 @@
 APIQ is a comprehensive, real-time quiz platform designed for educators, trainers, and event organizers. Whether you're conducting classroom assessments, corporate training sessions, or hosting competitive trivia events, APIQ delivers an engaging, responsive experience with powerful administrative controls and seamless participant interaction.
 
 Built with cutting-edge web technologies, APIQ combines real-time WebSocket communication, robust backend architecture, and an intuitive user interface to create memorable learning experiences.
+
+<img src="public/Architecture.drawio.png" alt="APIQ Logo" width="1000" />
 
 ---
 
