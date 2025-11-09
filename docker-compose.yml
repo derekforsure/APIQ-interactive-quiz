@@ -1,0 +1,67 @@
+version: '3.8'
+
+networks:
+  app-network:
+    driver: bridge
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3000"
+    dns:
+      - 8.8.8.8 # Use Google's public DNS for name resolution
+    extra_hosts:
+      - "db:172.18.0.3" # Explicitly map db hostname to its IP
+    environment:
+      # Next.js environment variables
+      # These should match the .env.sample and will be used by the app to connect to db and redis
+      DB_HOST: db
+      DB_USER: ${DB_USER:-user} # Default to 'user' if not set in .env
+      DB_PASSWORD: ${DB_PASSWORD:-password} # Default to 'password' if not set in .env
+      DB_DATABASE: ${DB_DATABASE:-apiquiz} # Default to 'apiquiz' if not set in .env
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT:-6379} # Default to 6379 if not set in .env
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-} # Default to empty if not set in .env
+      # Add any other environment variables your Next.js app needs
+      # For production, you would typically load these from a .env file or secrets management
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password} # Root password for MySQL
+      MYSQL_DATABASE: ${DB_DATABASE:-apiquiz} # Database name, matches app's DB_DATABASE
+      MYSQL_USER: ${DB_USER:-user} # User for the database, matches app's DB_USER
+      MYSQL_PASSWORD: ${DB_PASSWORD:-password} # Password for the database, matches app's DB_PASSWORD
+    ports:
+      - "3307:3306" # Expose MySQL port to host (optional, for direct connection)
+    volumes:
+      - db_data:/var/lib/mysql # Persist database data
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql # Initialize schema
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  redis:
+    image: redis:latest
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-} # Set Redis password if needed
+    ports:
+      - "6379:6379" # Expose Redis port to host (optional)
+    volumes:
+      - redis_data:/data # Persist Redis data
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  db_data:
+  redis_data:

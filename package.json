@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"next dev --turbopack\" \"node socket-server.mjs\"",
+    "dev": "concurrently \"next dev\" \"node socket-server.mjs\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
