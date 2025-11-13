@@ -32,6 +32,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
   const [finalLeaderboardScores, setFinalLeaderboardScores] = useState<Record<string, number> | null>(null);
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const ws = useRef<WebSocket | null>(null);
   const correctSoundRef = useRef<HTMLAudioElement | null>(null);
   const incorrectSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -40,6 +41,21 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
     correctSoundRef.current = new Audio('/sounds/Correct Tick Sound Effect.mp3');
     incorrectSoundRef.current = new Audio('/sounds/Wrong Tick Sound Effect.mp3');
   }, []);
+
+  useEffect(() => {
+    if (countdown === null) return;
+
+    if (countdown === 0) {
+      setCountdown(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCountdown(countdown - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [countdown]);
 
   useEffect(() => {
     async function fetchQuestions() {
@@ -71,32 +87,39 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
 
     ws.current.onmessage = async (event) => {
       const data = JSON.parse(event.data);
-      if (['QUIZ_STATE', 'QUIZ_STARTED', 'BUZZER_ACTIVATED', 'SCORES_UPDATED', 'NEW_QUESTION', 'TIMER_UPDATE', 'BUZZER_OPEN', 'QUIZ_ENDED'].includes(data.type)) {
-        setQuizState(data.payload);
-        if (data.payload.scoringMode && onScoringModeChange) {
-          onScoringModeChange(data.payload.scoringMode);
-        }
+      if (['QUIZ_STATE', 'QUIZ_STARTED', 'BUZZER_ACTIVATED', 'SCORES_UPDATED', 'NEW_QUESTION', 'TIMER_UPDATE', 'BUZZER_OPEN', 'QUIZ_ENDED', 'COUNTDOWN', 'START_QUIZ', 'COUNTDOWN_START'].includes(data.type)) {
+        if (data.type === 'COUNTDOWN') {
+          setCountdown(data.payload.countdown);
+        } else if (data.type === 'COUNTDOWN_START') {
+          // Start synchronized countdown
+          setCountdown(3);
+        } else {
+          setQuizState(data.payload);
+          if (data.payload.scoringMode && onScoringModeChange) {
+            onScoringModeChange(data.payload.scoringMode);
+          }
 
-        if (data.type === 'QUIZ_ENDED') {
-          try {
-            const response = await fetch(`/api/sessions/${sessionId}/scores?mode=${data.payload.scoringMode}`);
-            if (response.ok) {
-              const scoresData = await response.json();
-              const fetchedScores: Record<string, number> = {};
-              scoresData.data.forEach((item: { name: string; score: number }) => {
-                fetchedScores[item.name] = item.score;
-              });
-              setFinalLeaderboardScores(fetchedScores);
-            } else {
-              console.error('Failed to fetch final scores:', response.statusText);
+          if (data.type === 'QUIZ_ENDED') {
+            try {
+              const response = await fetch(`/api/sessions/${sessionId}/scores?mode=${data.payload.scoringMode}`);
+              if (response.ok) {
+                const scoresData = await response.json();
+                const fetchedScores: Record<string, number> = {};
+                scoresData.data.forEach((item: { name: string; score: number }) => {
+                  fetchedScores[item.name] = item.score;
+                });
+                setFinalLeaderboardScores(fetchedScores);
+              } else {
+                console.error('Failed to fetch final scores:', response.statusText);
+                setFinalLeaderboardScores(null);
+              }
+            } catch (error) {
+              console.error('Error fetching final scores:', error);
               setFinalLeaderboardScores(null);
             }
-          } catch (error) {
-            console.error('Error fetching final scores:', error);
-            setFinalLeaderboardScores(null);
+          } else if (data.type === 'START_QUIZ') {
+            setFinalLeaderboardScores(null); // Clear final scores when a new quiz starts
           }
-        } else if (data.type === 'START_QUIZ') {
-          setFinalLeaderboardScores(null); // Clear final scores when a new quiz starts
         }
       }
     };
@@ -232,7 +255,22 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
       </div>
       
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative">
+        {/* Countdown Notification */}
+        {countdown !== null && (
+          <div className="absolute top-4 left-4 z-40 animate-in">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full w-32 h-32 flex flex-col items-center justify-center shadow-lg border-4 border-white">
+              {countdown > 0 ? (
+                <>
+                  <p className="text-white text-xs font-semibold mb-1">STARTING IN</p>
+                  <span className="text-5xl font-bold text-white">{countdown}</span>
+                </>
+              ) : (
+                <p className="text-white text-lg font-bold animate-bounce">STARTED!</p>
+              )}
+            </div>
+          </div>
+        )}
         {/* Question Panel */}
         <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 shadow-sm">
           <div className="p-5 border-b border-gray-200">
@@ -305,7 +343,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
               {Boolean(isQuizStarted && !isQuizEnded) && (
                 <button
                   onClick={handleNextQuestion}
-                  disabled={Boolean(quizState.currentQuestionIndex >= questions.length - 1 || !!quizState.activeStudent)}
+                  disabled={Boolean(quizState && (quizState.currentQuestionIndex >= questions.length - 1 || !!quizState.activeStudent))}
                   className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Next Question
@@ -374,7 +412,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
                     </div>
                   ))}
               </div>
-            ) : (quizState?.scores && Object.keys(quizState.scores).length > 0) ? (
+            ) : (quizState && quizState.scores && Object.keys(quizState.scores).length > 0) ? (
               <div className="space-y-2">
                 {Object.entries(quizState.scores)
                   .sort(([, scoreA], [, scoreB]) => scoreB - scoreA)

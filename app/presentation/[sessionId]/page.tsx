@@ -43,11 +43,54 @@ export default function PresentationPage() {
   const [finalLeaderboardScores, setFinalLeaderboardScores] = useState<Record<string, number> | null>(null);
   const [loading, setLoading] = useState(true);
   const [studentNames, setStudentNames] = useState<Record<string, string>>({});
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [localCountdownActive, setLocalCountdownActive] = useState<boolean>(false);
   const ws = useRef<WebSocket | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
+  const [countdownProgress, setCountdownProgress] = useState<number>(100); // 0-100 for visual progress
+  const countdownStartTimeRef = useRef<number | null>(null);
 
   const currentQuestion = questions[quizState?.currentQuestionIndex ?? 0];
+
+  useEffect(() => {
+    if (!localCountdownActive) {
+      setCountdown(null); // Ensure countdown is null when not active
+      countdownStartTimeRef.current = null; // Reset ref
+      return;
+    }
+
+    if (!countdownStartTimeRef.current) {
+      countdownStartTimeRef.current = Date.now();
+      setCountdown(3); // Initialize countdown display
+    }
+    
+    const countdownStartTime = countdownStartTimeRef.current;
+
+    const updateCountdown = () => {
+      const now = Date.now();
+      const elapsed = now - countdownStartTime;
+      const totalDuration = 3000; // 3 seconds
+      const remaining = Math.max(0, totalDuration - elapsed);
+      
+      let countdownValue = Math.ceil(remaining / 1000);
+      if (countdownValue === 0 && remaining > 0) countdownValue = 1; // Ensure 1 is shown for the last second
+      
+      setCountdown(countdownValue > 0 ? countdownValue : null);
+      setCountdownProgress(Math.max(0, (remaining / totalDuration) * 100));
+
+      if (remaining <= 0) {
+        setLocalCountdownActive(false); // Stop local countdown
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 50);
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, [localCountdownActive]);
 
   useEffect(() => {
     if (currentQuestion) {
@@ -131,26 +174,37 @@ export default function PresentationPage() {
 
     ws.current.onmessage = async (event) => {
       const data = JSON.parse(event.data);
-      if (['QUIZ_STATE', 'QUIZ_STARTED', 'BUZZER_ACTIVATED', 'SCORES_UPDATED', 'NEW_QUESTION', 'TIMER_UPDATE', 'BUZZER_OPEN', 'QUIZ_ENDED'].includes(data.type)) {
-        setQuizState(data.payload);
+      if (['QUIZ_STATE', 'QUIZ_STARTED', 'BUZZER_ACTIVATED', 'SCORES_UPDATED', 'NEW_QUESTION', 'TIMER_UPDATE', 'BUZZER_OPEN', 'QUIZ_ENDED', 'COUNTDOWN', 'START_QUIZ', 'COUNTDOWN_START'].includes(data.type)) {
+        if (data.type === 'COUNTDOWN_START') {
+          setLocalCountdownActive(true); // Activate local countdown
+        } else if (data.type === 'COUNTDOWN') {
+          // This message type is for the admin panel's local countdown, not presentation
+          // Presentation page manages its own countdown based on COUNTDOWN_START
+        } else if (data.type === 'START_QUIZ') {
+          setQuizState(data.payload);
+        } else if (data.type === 'QUIZ_STARTED') {
+          setQuizState(data.payload);
+        } else {
+          setQuizState(data.payload);
 
-        if (data.type === 'QUIZ_ENDED') {
-          try {
-            const response = await fetch(`/api/sessions/${sessionId}/scores?mode=${data.payload.scoringMode}`);
-            if (response.ok) {
-              const scoresData = await response.json();
-              const fetchedScores: Record<string, number> = {};
-              scoresData.data.forEach((item: { name: string; score: number }) => {
-                fetchedScores[item.name] = item.score;
-              });
-              setFinalLeaderboardScores(fetchedScores);
-            } else {
-              console.error('Failed to fetch final scores:', response.statusText);
+          if (data.type === 'QUIZ_ENDED') {
+            try {
+              const response = await fetch(`/api/sessions/${sessionId}/scores?mode=${data.payload.scoringMode}`);
+              if (response.ok) {
+                const scoresData = await response.json();
+                const fetchedScores: Record<string, number> = {};
+                scoresData.data.forEach((item: { name: string; score: number }) => {
+                  fetchedScores[item.name] = item.score;
+                });
+                setFinalLeaderboardScores(fetchedScores);
+              } else {
+                console.error('Failed to fetch final scores:', response.statusText);
+                setFinalLeaderboardScores(null);
+              }
+            } catch (error) {
+              console.error('Error fetching final scores:', error);
               setFinalLeaderboardScores(null);
             }
-          } catch (error) {
-            console.error('Error fetching final scores:', error);
-            setFinalLeaderboardScores(null);
           }
         }
       }
@@ -185,6 +239,35 @@ export default function PresentationPage() {
 
       {/* Scanlines for retro TV effect */}
       <div className="absolute inset-0 bg-scanlines opacity-5 pointer-events-none"></div>
+
+      {/* Countdown Overlay */}
+      {countdown !== null && countdown > 0 && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 rounded-lg">
+          <div className="text-center">
+            <p className="text-white text-2xl mb-6 font-medium">Get Ready!</p>
+            <div className="relative w-40 h-40">
+              {/* Progress ring */}
+              <svg className="absolute inset-0 w-40 h-40 transform -rotate-90" viewBox="0 0 160 160">
+                <circle cx="80" cy="80" r="75" fill="none" stroke="#f3f4f6" strokeWidth="8" opacity="0.2" />
+                <circle 
+                  cx="80" 
+                  cy="80" 
+                  r="75" 
+                  fill="none" 
+                  stroke="#60a5fa" 
+                  strokeWidth="8"
+                  strokeDasharray={`${(countdownProgress / 100) * 471} 471`}
+                  className="transition-all duration-100"
+                />
+              </svg>
+              {/* Countdown number */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-8xl font-bold text-white">{countdown}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="relative z-10 h-full flex flex-col">
         {quizState?.isQuizEnded && finalLeaderboardScores ? (

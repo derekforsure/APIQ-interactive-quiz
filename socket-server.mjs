@@ -112,16 +112,41 @@ wss.on('connection', ws => {
         break;
 
       case 'START_QUIZ':
-        session.quizState.isQuizStarted = true;
+        // Clear any existing timer
+        clearInterval(session.quizState.timerId);
+        
+        // Don't set isQuizStarted yet - only after countdown completes
         session.quizState.isQuizEnded = false;
-        session.quizState.isBuzzerActive = true;
+        session.quizState.isBuzzerActive = false;
         session.quizState.remainingTime = 10000;
         session.quizState.showAnswer = false;
         session.quizState.ineligibleStudents = [];
         session.quizState.currentQuestionIndex = 0;
         session.quizState.scores = {};
-        startTimer();
-        broadcast({ type: 'QUIZ_STARTED', payload: getCleanQuizState() });
+        
+        // Get server timestamp for synchronized countdown
+        const countdownStartTime = Date.now();
+        
+        // Broadcast START_QUIZ for initial setup
+        broadcast({ type: 'START_QUIZ', payload: getCleanQuizState() });
+        
+        // Send countdown info immediately with server timestamp
+        broadcast({ 
+          type: 'COUNTDOWN_START', 
+          payload: { 
+            serverTime: countdownStartTime,
+            duration: 3000 // 3 second countdown
+          } 
+        });
+        
+        // Start quiz after 3 seconds
+        setTimeout(() => {
+          session.quizState.isQuizStarted = true;
+          session.quizState.isBuzzerActive = true;
+          session.quizState.remainingTime = 10000;
+          startTimer();
+          broadcast({ type: 'QUIZ_STARTED', payload: getCleanQuizState() });
+        }, 3000);
         break;
 
       case 'RESET_STATE':
@@ -160,6 +185,7 @@ wss.on('connection', ws => {
 
       case 'JUDGE_ANSWER':
         if (payload.correct) {
+          clearInterval(session.quizState.timerId);
           const timeTaken = 10000 - session.quizState.remainingTime;
           let points = 0;
           if (timeTaken <= 3333) points = 3;
@@ -194,6 +220,7 @@ wss.on('connection', ws => {
           }
           session.quizState.activeStudent = null;
           session.quizState.showAnswer = true;
+          session.quizState.isBuzzerActive = false;
           broadcast({ type: 'SCORES_UPDATED', payload: getCleanQuizState() });
         } else {
           session.quizState.ineligibleStudents.push(session.quizState.activeStudent);
