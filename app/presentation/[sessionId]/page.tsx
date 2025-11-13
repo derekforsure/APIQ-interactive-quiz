@@ -42,6 +42,7 @@ export default function PresentationPage() {
   const [quizState, setQuizState] = useState<QuizState | null>(null);
   const [finalLeaderboardScores, setFinalLeaderboardScores] = useState<Record<string, number> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [studentNames, setStudentNames] = useState<Record<string, string>>({});
   const ws = useRef<WebSocket | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
@@ -94,7 +95,27 @@ export default function PresentationPage() {
         setLoading(false);
       }
     }
+
+    async function fetchParticipants() {
+      if (!sessionId) return;
+      try {
+        const response = await fetch(`/api/sessions/${sessionId}/participants`);
+        if (!response.ok) {
+          throw new Error(`Error fetching participants: ${response.status}`);
+        }
+        const data = await response.json();
+        const namesMap: Record<string, string> = {};
+        data.forEach((p: { student_id: string; name: string }) => {
+          namesMap[p.student_id] = p.name;
+        });
+        setStudentNames(namesMap);
+      } catch (error) {
+        console.error('Error fetching participants:', error);
+      }
+    }
+
     fetchQuestions();
+    fetchParticipants();
   }, [sessionId]);
 
   useEffect(() => {
@@ -296,7 +317,7 @@ export default function PresentationPage() {
                         <div className="flex items-center gap-6">
                           <div className="w-6 h-6 bg-white rounded-full animate-ping"></div>
                           <span className="text-5xl font-black text-white drop-shadow-lg uppercase tracking-wide">
-                            {quizState.activeStudent}
+                            {studentNames[quizState.activeStudent] || quizState.activeStudent}
                           </span>
                           <div className="w-6 h-6 bg-white rounded-full animate-ping"></div>
                         </div>
