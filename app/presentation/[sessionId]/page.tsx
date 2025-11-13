@@ -46,23 +46,38 @@ export default function PresentationPage() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [localCountdownActive, setLocalCountdownActive] = useState<boolean>(false);
   const ws = useRef<WebSocket | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const quizMusicAudioRef = useRef<HTMLAudioElement | null>(null);
+  const countdownAudioRef = useRef<HTMLAudioElement | null>(null);
+  const leaderboardAudioRef = useRef<HTMLAudioElement | null>(null); // Ref for leaderboard music
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
-  const [countdownProgress, setCountdownProgress] = useState<number>(100); // 0-100 for visual progress
+  const [countdownProgress, setCountdownProgress] = useState<number>(100);
   const countdownStartTimeRef = useRef<number | null>(null);
 
   const currentQuestion = questions[quizState?.currentQuestionIndex ?? 0];
 
   useEffect(() => {
+    // Initialize audio refs
+    if (!countdownAudioRef.current) {
+      countdownAudioRef.current = new Audio('/sounds/Race Countdown Sound Effect.wav');
+      countdownAudioRef.current.volume = 0.7;
+    }
+    if (!leaderboardAudioRef.current) {
+      leaderboardAudioRef.current = new Audio('/sounds/Holiday Giveaway Music.mp3');
+      leaderboardAudioRef.current.loop = true;
+    }
+
     if (!localCountdownActive) {
-      setCountdown(null); // Ensure countdown is null when not active
-      countdownStartTimeRef.current = null; // Reset ref
+      setCountdown(null);
+      countdownStartTimeRef.current = null;
+      countdownAudioRef.current?.pause();
+      countdownAudioRef.current?.load();
       return;
     }
 
     if (!countdownStartTimeRef.current) {
       countdownStartTimeRef.current = Date.now();
-      setCountdown(3); // Initialize countdown display
+      setCountdown(3);
+      countdownAudioRef.current?.play().catch(error => console.error("Countdown audio play failed:", error));
     }
     
     const countdownStartTime = countdownStartTimeRef.current;
@@ -70,17 +85,17 @@ export default function PresentationPage() {
     const updateCountdown = () => {
       const now = Date.now();
       const elapsed = now - countdownStartTime;
-      const totalDuration = 3000; // 3 seconds
+      const totalDuration = 3000;
       const remaining = Math.max(0, totalDuration - elapsed);
       
       let countdownValue = Math.ceil(remaining / 1000);
-      if (countdownValue === 0 && remaining > 0) countdownValue = 1; // Ensure 1 is shown for the last second
+      if (countdownValue === 0 && remaining > 0) countdownValue = 1;
       
       setCountdown(countdownValue > 0 ? countdownValue : null);
       setCountdownProgress(Math.max(0, (remaining / totalDuration) * 100));
 
       if (remaining <= 0) {
-        setLocalCountdownActive(false); // Stop local countdown
+        setLocalCountdownActive(false);
       }
     };
 
@@ -104,21 +119,36 @@ export default function PresentationPage() {
   }, [currentQuestion]);
 
   useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio('/sounds/Quiz Timer Music.mp3');
-      audioRef.current.loop = true;
+    if (!quizMusicAudioRef.current) {
+      quizMusicAudioRef.current = new Audio('/sounds/Quiz Timer Music.mp3');
+      quizMusicAudioRef.current.loop = true;
     }
 
     if (quizState?.isBuzzerActive && quizState.remainingTime > 0) {
-      audioRef.current.play().catch(error => console.error("Audio play failed:", error));
+      quizMusicAudioRef.current.play().catch(error => console.error("Quiz music audio play failed:", error));
     } else {
-      audioRef.current.pause();
+      quizMusicAudioRef.current.pause();
     }
   }, [quizState?.isBuzzerActive, quizState?.remainingTime]);
 
+  // Effect for leaderboard music
+  useEffect(() => {
+    if (quizState?.isQuizEnded && finalLeaderboardScores) {
+      quizMusicAudioRef.current?.pause();
+      leaderboardAudioRef.current?.play().catch(error => console.error("Leaderboard audio play failed:", error));
+    } else {
+      leaderboardAudioRef.current?.pause();
+    }
+    return () => {
+      leaderboardAudioRef.current?.pause();
+    };
+  }, [quizState?.isQuizEnded, finalLeaderboardScores]);
+
   useEffect(() => {
     return () => {
-      audioRef.current?.pause();
+      quizMusicAudioRef.current?.pause();
+      countdownAudioRef.current?.pause();
+      leaderboardAudioRef.current?.pause();
     };
   }, []);
 
@@ -176,10 +206,7 @@ export default function PresentationPage() {
       const data = JSON.parse(event.data);
       if (['QUIZ_STATE', 'QUIZ_STARTED', 'BUZZER_ACTIVATED', 'SCORES_UPDATED', 'NEW_QUESTION', 'TIMER_UPDATE', 'BUZZER_OPEN', 'QUIZ_ENDED', 'COUNTDOWN', 'START_QUIZ', 'COUNTDOWN_START'].includes(data.type)) {
         if (data.type === 'COUNTDOWN_START') {
-          setLocalCountdownActive(true); // Activate local countdown
-        } else if (data.type === 'COUNTDOWN') {
-          // This message type is for the admin panel's local countdown, not presentation
-          // Presentation page manages its own countdown based on COUNTDOWN_START
+          setLocalCountdownActive(true);
         } else if (data.type === 'START_QUIZ') {
           setQuizState(data.payload);
         } else if (data.type === 'QUIZ_STARTED') {
