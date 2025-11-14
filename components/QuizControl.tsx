@@ -307,8 +307,8 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
                         </span>
                       )}
                     </div>
-                    <p className={`text-base ${quizState.showAnswer ? 'text-gray-900' : 'text-gray-400 select-none'}`}>
-                      {quizState.showAnswer ? currentQuestion.answer : '••••••••••••••••'}
+                    <p className="text-base text-gray-900">
+                      {currentQuestion.answer}
                     </p>
                   </div>
                 </div>
@@ -350,15 +350,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
                 </button>
               )}
 
-              {/* Reveal/Hide Answer Button */}
-              {Boolean(isQuizStarted && !isQuizEnded) && (
-                <button
-                  onClick={() => sendCommand('TOGGLE_ANSWER_VISIBILITY')}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  {quizState?.showAnswer ? 'Hide' : 'Reveal'}
-                </button>
-              )}
+
             </div>
 
             {/* End Quiz Button */}
