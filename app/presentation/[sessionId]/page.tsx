@@ -58,7 +58,7 @@ export default function PresentationPage() {
   useEffect(() => {
     // Initialize audio refs
     if (!countdownAudioRef.current) {
-      countdownAudioRef.current = new Audio('/sounds/Race Countdown Sound Effect.wav');
+      countdownAudioRef.current = new Audio('/sounds/Countdown Sound Effect.mp3');
       countdownAudioRef.current.volume = 0.7;
     }
     if (!leaderboardAudioRef.current) {
@@ -209,8 +209,10 @@ export default function PresentationPage() {
           setLocalCountdownActive(true);
         } else if (data.type === 'START_QUIZ') {
           setQuizState(data.payload);
+          setFinalLeaderboardScores(null);
         } else if (data.type === 'QUIZ_STARTED') {
           setQuizState(data.payload);
+          setFinalLeaderboardScores(null);
         } else {
           setQuizState(data.payload);
 

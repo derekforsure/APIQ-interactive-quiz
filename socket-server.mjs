@@ -146,7 +146,7 @@ wss.on('connection', ws => {
           session.quizState.remainingTime = 10000;
           startTimer();
           broadcast({ type: 'QUIZ_STARTED', payload: getCleanQuizState() });
-        }, 3000);
+        }, 3500);
         break;
 
       case 'RESET_STATE':
