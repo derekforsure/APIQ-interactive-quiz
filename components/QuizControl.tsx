@@ -92,7 +92,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
           setCountdown(data.payload.countdown);
         } else if (data.type === 'COUNTDOWN_START') {
           // Start synchronized countdown
-          setCountdown(3);
+          setCountdown(4);
         } else {
           setQuizState(data.payload);
           if (data.payload.scoringMode && onScoringModeChange) {

@@ -135,18 +135,18 @@ wss.on('connection', ws => {
           type: 'COUNTDOWN_START', 
           payload: { 
             serverTime: countdownStartTime,
-            duration: 3000 // 3 second countdown
+            duration: 4000 // 4 second countdown
           } 
         });
         
-        // Start quiz after 3 seconds
+        // Start quiz after 4 seconds
         setTimeout(() => {
           session.quizState.isQuizStarted = true;
           session.quizState.isBuzzerActive = true;
           session.quizState.remainingTime = 10000;
           startTimer();
           broadcast({ type: 'QUIZ_STARTED', payload: getCleanQuizState() });
-        }, 3500);
+        }, 3900);
         break;
 
       case 'RESET_STATE':

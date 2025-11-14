@@ -45,6 +45,7 @@ export default function PresentationPage() {
   const [studentNames, setStudentNames] = useState<Record<string, string>>({});
   const [countdown, setCountdown] = useState<number | null>(null);
   const [localCountdownActive, setLocalCountdownActive] = useState<boolean>(false);
+  const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
   const ws = useRef<WebSocket | null>(null);
   const quizMusicAudioRef = useRef<HTMLAudioElement | null>(null);
   const countdownAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -76,7 +77,7 @@ export default function PresentationPage() {
 
     if (!countdownStartTimeRef.current) {
       countdownStartTimeRef.current = Date.now();
-      setCountdown(3);
+      setCountdown(4);
       countdownAudioRef.current?.play().catch(error => console.error("Countdown audio play failed:", error));
     }
     
@@ -85,7 +86,7 @@ export default function PresentationPage() {
     const updateCountdown = () => {
       const now = Date.now();
       const elapsed = now - countdownStartTime;
-      const totalDuration = 3000;
+      const totalDuration = 4000;
       const remaining = Math.max(0, totalDuration - elapsed);
       
       let countdownValue = Math.ceil(remaining / 1000);
@@ -207,12 +208,14 @@ export default function PresentationPage() {
       if (['QUIZ_STATE', 'QUIZ_STARTED', 'BUZZER_ACTIVATED', 'SCORES_UPDATED', 'NEW_QUESTION', 'TIMER_UPDATE', 'BUZZER_OPEN', 'QUIZ_ENDED', 'COUNTDOWN', 'START_QUIZ', 'COUNTDOWN_START'].includes(data.type)) {
         if (data.type === 'COUNTDOWN_START') {
           setLocalCountdownActive(true);
+          setIsCountingDown(true);
         } else if (data.type === 'START_QUIZ') {
           setQuizState(data.payload);
           setFinalLeaderboardScores(null);
         } else if (data.type === 'QUIZ_STARTED') {
           setQuizState(data.payload);
           setFinalLeaderboardScores(null);
+          setIsCountingDown(false);
         } else {
           setQuizState(data.payload);
 
@@ -312,7 +315,7 @@ export default function PresentationPage() {
           <div className="flex-1 flex items-center justify-center">
             <Leaderboard scores={finalLeaderboardScores} />
           </div>
-        ) : !quizState || !quizState.isQuizStarted ? (
+        ) : !quizState || (!quizState.isQuizStarted && !isCountingDown) ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center animate-fade-in">
               <div className="mb-12 relative inline-block">
