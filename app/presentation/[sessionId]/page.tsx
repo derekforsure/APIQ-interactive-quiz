@@ -269,27 +269,36 @@ export default function PresentationPage() {
 
       {/* Countdown Overlay */}
       {countdown !== null && countdown > 0 && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 rounded-lg">
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl flex items-center justify-center z-50 animate-fade-in">
           <div className="text-center">
-            <p className="text-white text-2xl mb-6 font-medium">Get Ready!</p>
-            <div className="relative w-40 h-40">
+            <p className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 mb-8">
+              Get Ready!
+            </p>
+            <div className="relative w-64 h-64">
               {/* Progress ring */}
-              <svg className="absolute inset-0 w-40 h-40 transform -rotate-90" viewBox="0 0 160 160">
-                <circle cx="80" cy="80" r="75" fill="none" stroke="#f3f4f6" strokeWidth="8" opacity="0.2" />
-                <circle 
-                  cx="80" 
-                  cy="80" 
-                  r="75" 
-                  fill="none" 
-                  stroke="#60a5fa" 
-                  strokeWidth="8"
-                  strokeDasharray={`${(countdownProgress / 100) * 471} 471`}
+              <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 200 200">
+                <defs>
+                  <linearGradient id="countdownGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#a855f7" />
+                    <stop offset="100%" stopColor="#ec4899" />
+                  </linearGradient>
+                </defs>
+                <circle cx="100" cy="100" r="95" fill="none" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="10" />
+                <circle
+                  cx="100"
+                  cy="100"
+                  r="95"
+                  fill="none"
+                  stroke="url(#countdownGradient)"
+                  strokeWidth="10"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(countdownProgress / 100) * 597} 597`}
                   className="transition-all duration-100"
                 />
               </svg>
               {/* Countdown number */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-8xl font-bold text-white">{countdown}</span>
+              <div className="absolute inset-0 flex items-center justify-center animate-bounce-in" key={countdown}>
+                <span className="text-9xl font-black text-white drop-shadow-[0_5px_15px_rgba(255,255,255,0.3)]">{countdown}</span>
               </div>
             </div>
           </div>

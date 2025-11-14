@@ -2,8 +2,11 @@ import { getConnection } from '@/utils/db';
 import { successResponse, errorResponse } from '@/lib/apiResponse';
 import { NextRequest } from 'next/server';
 
-export async function POST(request: NextRequest, { params }: { params: { sessionId: string } }) {
-  const { sessionId } = params;
+export async function POST(
+  request: NextRequest,
+  context: { params: { sessionId: string } },
+) {
+  const { sessionId } = await context.params;
   let connection;
 
   try {
