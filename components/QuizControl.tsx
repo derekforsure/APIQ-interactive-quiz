@@ -39,7 +39,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
 
   useEffect(() => {
     correctSoundRef.current = new Audio('/sounds/Correct Tick Sound Effect.mp3');
-    incorrectSoundRef.current = new Audio('/sounds/Wrong Tick Sound Effect.mp3');
+    incorrectSoundRef.current = new Audio('/sounds/Wrong Buzzer Sound Effect.mp3');
   }, []);
 
   useEffect(() => {
