@@ -189,8 +189,8 @@ export default function PresentationPage() {
       }
     }
 
-    fetchQuestions();
-    fetchParticipants();
+    // Fetch both in parallel for better performance
+    Promise.all([fetchQuestions(), fetchParticipants()]);
   }, [sessionId]);
 
   useEffect(() => {

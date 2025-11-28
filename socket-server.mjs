@@ -1,10 +1,19 @@
 import 'dotenv/config';
 import WebSocket, { WebSocketServer } from 'ws';
 import mysql from 'mysql2/promise';
+import Redis from 'ioredis';
+import { WebSocketMessageSchema } from './websocket-schemas.mjs';
 
 const wss = new WebSocketServer({ port: 3001 });
+const redis = new Redis({
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379'),
+  password: process.env.REDIS_PASSWORD,
+});
 
-const sessions = {};
+// In-memory map for active WebSocket connections (cannot be stored in Redis)
+// Structure: sessionId -> { admin: ws | null, students: Set<ws> }
+const activeConnections = {};
 
 let db;
 
@@ -35,6 +44,96 @@ async function retryDbOperation(operation) {
   }
 }
 
+// Helper to get quiz state from Redis
+async function getQuizState(sessionId) {
+  const state = await redis.get(`quiz:${sessionId}`);
+  if (state) {
+    return JSON.parse(state);
+  }
+  // Default state if not found
+  return {
+    isQuizStarted: false,
+    isQuizEnded: false,
+    scoringMode: 'individual',
+    isBuzzerActive: false,
+    activeStudent: null,
+    currentQuestionIndex: 0,
+    scores: {},
+    remainingTime: 10000,
+    ineligibleStudents: [],
+    showAnswer: false,
+    isReadingPeriod: false,
+  };
+}
+
+// Helper to save quiz state to Redis
+async function saveQuizState(sessionId, state) {
+  // Save with 24h TTL to prevent stale data piling up
+  await redis.set(`quiz:${sessionId}`, JSON.stringify(state), 'EX', 86400);
+}
+
+// Helper to get active connections for a session
+function getConnections(sessionId) {
+  if (!activeConnections[sessionId]) {
+    activeConnections[sessionId] = {
+      admin: null,
+      students: new Set(),
+      spectators: new Set(),
+    };
+  }
+  return activeConnections[sessionId];
+}
+
+// Helper to broadcast to all clients in a session
+function broadcast(sessionId, data) {
+  const connections = getConnections(sessionId);
+  const message = JSON.stringify(data);
+
+  if (connections.admin && connections.admin.readyState === WebSocket.OPEN) {
+    connections.admin.send(message);
+  }
+
+  for (const client of connections.students) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  }
+
+  for (const client of connections.spectators) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  }
+}
+
+// Timer management (kept in memory for simplicity, but state synced to Redis)
+const sessionTimers = {};
+
+function startTimer(sessionId) {
+  if (sessionTimers[sessionId]) {
+    clearInterval(sessionTimers[sessionId]);
+  }
+
+  sessionTimers[sessionId] = setInterval(async () => {
+    const state = await getQuizState(sessionId);
+
+    if (state.remainingTime > 0) {
+      state.remainingTime -= 100;
+      if (state.remainingTime <= 0) {
+        state.remainingTime = 0;
+        state.isBuzzerActive = false;
+        clearInterval(sessionTimers[sessionId]);
+        delete sessionTimers[sessionId];
+      }
+
+      await saveQuizState(sessionId, state);
+      broadcast(sessionId, { type: 'TIMER_UPDATE', payload: state });
+    } else {
+      clearInterval(sessionTimers[sessionId]);
+      delete sessionTimers[sessionId];
+    }
+  }, 100);
+}
 
 wss.on('connection', ws => {
   console.log('Client connected');
@@ -47,256 +146,272 @@ wss.on('connection', ws => {
       console.error('Failed to parse message:', message);
       return;
     }
-    const { type, payload } = data;
+
+    // Validate message structure with Zod
+    const validationResult = WebSocketMessageSchema.safeParse(data);
+    if (!validationResult.success) {
+      console.error('Invalid message structure:', validationResult.error.errors);
+      ws.send(JSON.stringify({
+        type: 'ERROR',
+        payload: {
+          message: 'Invalid message format',
+          errors: validationResult.error.errors,
+        },
+      }));
+      return;
+    }
+
+    const { type, payload } = validationResult.data;
     console.log(`[${payload.sessionId || 'N/A'}] Received message: type=${type}, payload=`, payload);
     const { sessionId } = payload;
 
-    if (!sessions[sessionId]) {
-      sessions[sessionId] = {
-        clients: new Set(),
-        admin: null,
-        students: new Set(),
-        quizState: {
-          isQuizStarted: false,
-          isQuizEnded: false,
-          scoringMode: 'individual',
-          isBuzzerActive: false,
-          activeStudent: null,
-          currentQuestionIndex: 0,
-          scores: {},
-          remainingTime: 10000,
-          timerId: null,
-          ineligibleStudents: [],
-          showAnswer: false,
-          isReadingPeriod: false,
-        },
-      };
-    }
-
-    const session = sessions[sessionId];
-
-    const getCleanQuizState = () => {
-      const cleanState = { ...session.quizState };
-      delete cleanState.timerId;
-      delete cleanState.readingTimerId;
-      return cleanState;
-    };
-
-    const broadcast = (data) => {
-      for (const client of session.clients) {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify(data));
-        }
-      }
-    };
-
-    const startTimer = () => {
-      clearInterval(session.quizState.timerId);
-      session.quizState.timerId = setInterval(() => {
-        session.quizState.remainingTime -= 100;
-        if (session.quizState.remainingTime <= 0) {
-          clearInterval(session.quizState.timerId);
-          session.quizState.isBuzzerActive = false;
-        }
-        broadcast({ type: 'TIMER_UPDATE', payload: getCleanQuizState() });
-      }, 100);
-    };
+    const connections = getConnections(sessionId);
 
     switch (type) {
       case 'REGISTER':
-        session.clients.add(ws);
         if (payload.role === 'admin') {
-          session.admin = ws;
+          connections.admin = ws;
         } else if (payload.role === 'student') {
-          session.students.add(ws);
+          connections.students.add(ws);
+        } else if (payload.role === 'spectator') {
+          connections.spectators.add(ws);
         }
-        ws.send(JSON.stringify({ type: 'QUIZ_STATE', payload: getCleanQuizState() }));
+        // Send current state immediately upon connection
+        const currentState = await getQuizState(sessionId);
+        ws.send(JSON.stringify({ type: 'QUIZ_STATE', payload: currentState }));
         break;
 
       case 'SET_SCORING_MODE':
-        session.quizState.scoringMode = payload.mode;
-        session.quizState.scores = {}; // Reset scores when mode changes
-        broadcast({ type: 'QUIZ_STATE', payload: getCleanQuizState() });
+        {
+          const state = await getQuizState(sessionId);
+          state.scoringMode = payload.mode;
+          state.scores = {}; // Reset scores when mode changes
+          await saveQuizState(sessionId, state);
+          broadcast(sessionId, { type: 'QUIZ_STATE', payload: state });
+        }
         break;
 
       case 'START_QUIZ':
-        // Clear any existing timer
-        clearInterval(session.quizState.timerId);
+        {
+          // Clear any existing timer
+          if (sessionTimers[sessionId]) clearInterval(sessionTimers[sessionId]);
 
-        // Don't set isQuizStarted yet - only after countdown completes
-        session.quizState.isQuizEnded = false;
-        session.quizState.isBuzzerActive = false;
-        session.quizState.remainingTime = 10000;
-        session.quizState.showAnswer = false;
-        session.quizState.isReadingPeriod = false;
-        session.quizState.ineligibleStudents = [];
-        session.quizState.currentQuestionIndex = 0;
-        session.quizState.scores = {};
+          const state = await getQuizState(sessionId);
+          state.isQuizEnded = false;
+          state.isBuzzerActive = false;
+          state.remainingTime = 10000;
+          state.showAnswer = false;
+          state.isReadingPeriod = false;
+          state.ineligibleStudents = [];
+          state.currentQuestionIndex = 0;
+          state.scores = {};
 
-        // Get server timestamp for synchronized countdown
-        const countdownStartTime = Date.now();
+          await saveQuizState(sessionId, state);
 
-        // Broadcast START_QUIZ for initial setup
-        broadcast({ type: 'START_QUIZ', payload: getCleanQuizState() });
+          // Get server timestamp for synchronized countdown
+          const countdownStartTime = Date.now();
 
-        // Send countdown info immediately with server timestamp
-        broadcast({
-          type: 'COUNTDOWN_START',
-          payload: {
-            serverTime: countdownStartTime,
-            duration: 4000 // 4 second countdown
-          }
-        });
+          // Broadcast START_QUIZ for initial setup
+          broadcast(sessionId, { type: 'START_QUIZ', payload: state });
 
-        // Start quiz after 4 seconds
-        setTimeout(() => {
-          session.quizState.isQuizStarted = true;
-          session.quizState.isBuzzerActive = true;
-          session.quizState.remainingTime = 10000;
-          startTimer();
-          broadcast({ type: 'QUIZ_STARTED', payload: getCleanQuizState() });
-        }, 3900);
+          // Send countdown info immediately with server timestamp
+          broadcast(sessionId, {
+            type: 'COUNTDOWN_START',
+            payload: {
+              serverTime: countdownStartTime,
+              duration: 4000 // 4 second countdown
+            }
+          });
+
+          // Start quiz after 4 seconds
+          setTimeout(async () => {
+            const freshState = await getQuizState(sessionId);
+            freshState.isQuizStarted = true;
+            freshState.isBuzzerActive = true;
+            freshState.remainingTime = 10000;
+            await saveQuizState(sessionId, freshState);
+
+            startTimer(sessionId);
+            broadcast(sessionId, { type: 'QUIZ_STARTED', payload: freshState });
+          }, 3900);
+        }
         break;
 
       case 'RESET_STATE':
-        clearInterval(session.quizState.timerId);
-        session.quizState.isQuizStarted = false;
-        session.quizState.isQuizEnded = false;
-        session.quizState.isBuzzerActive = false;
-        session.quizState.remainingTime = 10000;
-        session.quizState.showAnswer = false;
-        session.quizState.isReadingPeriod = false;
-        session.quizState.ineligibleStudents = [];
-        session.quizState.currentQuestionIndex = 0;
-        session.quizState.scores = {};
-        broadcast({ type: 'QUIZ_STATE', payload: getCleanQuizState() });
+        {
+          if (sessionTimers[sessionId]) clearInterval(sessionTimers[sessionId]);
+
+          const state = await getQuizState(sessionId);
+          state.isQuizStarted = false;
+          state.isQuizEnded = false;
+          state.isBuzzerActive = false;
+          state.remainingTime = 10000;
+          state.showAnswer = false;
+          state.isReadingPeriod = false;
+          state.ineligibleStudents = [];
+          state.currentQuestionIndex = 0;
+          state.scores = {};
+
+          await saveQuizState(sessionId, state);
+          broadcast(sessionId, { type: 'QUIZ_STATE', payload: state });
+        }
         break;
 
       case 'NEXT_QUESTION':
-        clearInterval(session.quizState.timerId);
-        clearTimeout(session.quizState.readingTimerId); // Clear any pending reading period
+        {
+          if (sessionTimers[sessionId]) clearInterval(sessionTimers[sessionId]);
 
-        session.quizState.currentQuestionIndex += 1;
-        session.quizState.isBuzzerActive = false;
-        session.quizState.activeStudent = null;
-        session.quizState.remainingTime = 10000;
-        session.quizState.ineligibleStudents = [];
-        session.quizState.showAnswer = false;
-        session.quizState.isReadingPeriod = true;
+          const state = await getQuizState(sessionId);
+          state.currentQuestionIndex += 1;
+          state.isBuzzerActive = false;
+          state.activeStudent = null;
+          state.remainingTime = 10000;
+          state.ineligibleStudents = [];
+          state.showAnswer = false;
+          state.isReadingPeriod = true;
 
-        // Broadcast immediately so students see the new question
-        broadcast({ type: 'NEW_QUESTION', payload: getCleanQuizState() });
+          await saveQuizState(sessionId, state);
 
-        // Start 3-second reading period
-        session.quizState.readingTimerId = setTimeout(() => {
-          session.quizState.isBuzzerActive = true;
-          session.quizState.isReadingPeriod = false;
-          startTimer();
-          broadcast({ type: 'BUZZER_OPEN', payload: getCleanQuizState() });
-        }, 5000);
+          // Broadcast immediately so students see the new question
+          broadcast(sessionId, { type: 'NEW_QUESTION', payload: state });
+
+          // Start 3-second reading period
+          setTimeout(async () => {
+            const freshState = await getQuizState(sessionId);
+            freshState.isBuzzerActive = true;
+            freshState.isReadingPeriod = false;
+            await saveQuizState(sessionId, freshState);
+
+            startTimer(sessionId);
+            broadcast(sessionId, { type: 'BUZZER_OPEN', payload: freshState });
+          }, 5000);
+        }
         break;
 
       case 'BUZZ':
-        if (session.quizState.isBuzzerActive && !session.quizState.ineligibleStudents.includes(payload.studentId)) {
-          clearInterval(session.quizState.timerId);
-          session.quizState.isBuzzerActive = false;
-          session.quizState.activeStudent = payload.studentId;
-          broadcast({ type: 'BUZZER_ACTIVATED', payload: getCleanQuizState() });
+        {
+          const state = await getQuizState(sessionId);
+          if (state.isBuzzerActive && !state.ineligibleStudents.includes(payload.studentId)) {
+            if (sessionTimers[sessionId]) clearInterval(sessionTimers[sessionId]);
+
+            state.isBuzzerActive = false;
+            state.activeStudent = payload.studentId;
+
+            await saveQuizState(sessionId, state);
+            broadcast(sessionId, { type: 'BUZZER_ACTIVATED', payload: state });
+          }
         }
         break;
 
       case 'JUDGE_ANSWER':
-        if (payload.correct) {
-          clearInterval(session.quizState.timerId);
-          const timeTaken = 10000 - session.quizState.remainingTime;
-          let points = 0;
-          if (timeTaken <= 3333) points = 3;
-          else if (timeTaken <= 6666) points = 2;
-          else points = 1;
+        {
+          const state = await getQuizState(sessionId);
 
-          const db = await getDbConnection();
-          const currentQuestionId = payload.questionId;
-          const studentId = session.quizState.activeStudent;
+          if (payload.correct) {
+            if (sessionTimers[sessionId]) clearInterval(sessionTimers[sessionId]);
 
-          if (session.quizState.scoringMode === 'individual') {
-            // Analytics write
-            await retryDbOperation(async () => {
-              await db.execute('INSERT INTO student_question_scores (session_id, student_id, question_id, score) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE score = VALUES(score)', [sessionId, studentId, currentQuestionId, points]);
-            });
-            // Update in-memory scores
-            session.quizState.scores[studentId] = (session.quizState.scores[studentId] || 0) + points;
+            const timeTaken = 10000 - state.remainingTime;
+            let points = 0;
+            if (timeTaken <= 3333) points = 3;
+            else if (timeTaken <= 6666) points = 2;
+            else points = 1;
 
-          } else { // department scoring
-            const [rows] = await db.execute('SELECT d.id, d.name FROM students s JOIN departments d ON s.department_id = d.id WHERE s.student_id = ?', [studentId]);
-            if (rows.length > 0) {
-              const department = rows[0];
+            const db = await getDbConnection();
+            const currentQuestionId = payload.questionId;
+            const studentId = state.activeStudent;
 
-              // Analytics write for the individual student
+            if (state.scoringMode === 'individual') {
+              // Analytics write
               await retryDbOperation(async () => {
                 await db.execute('INSERT INTO student_question_scores (session_id, student_id, question_id, score) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE score = VALUES(score)', [sessionId, studentId, currentQuestionId, points]);
               });
+              // Update scores
+              state.scores[studentId] = (state.scores[studentId] || 0) + points;
 
-              // Update in-memory scores
-              session.quizState.scores[department.name] = (session.quizState.scores[department.name] || 0) + points;
+            } else { // department scoring
+              const [rows] = await db.execute('SELECT d.id, d.name FROM students s JOIN departments d ON s.department_id = d.id WHERE s.student_id = ?', [studentId]);
+              if (rows.length > 0) {
+                const department = rows[0];
+
+                // Analytics write for the individual student
+                await retryDbOperation(async () => {
+                  await db.execute('INSERT INTO student_question_scores (session_id, student_id, question_id, score) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE score = VALUES(score)', [sessionId, studentId, currentQuestionId, points]);
+                });
+
+                // Update scores
+                state.scores[department.name] = (state.scores[department.name] || 0) + points;
+              }
             }
+            state.activeStudent = null;
+            state.showAnswer = true;
+            state.isBuzzerActive = false;
+
+            await saveQuizState(sessionId, state);
+            broadcast(sessionId, { type: 'SCORES_UPDATED', payload: state });
+          } else {
+            state.ineligibleStudents.push(state.activeStudent);
+            state.activeStudent = null;
+            state.isBuzzerActive = true;
+
+            await saveQuizState(sessionId, state);
+
+            startTimer(sessionId);
+            broadcast(sessionId, { type: 'BUZZER_OPEN', payload: state });
           }
-          session.quizState.activeStudent = null;
-          session.quizState.showAnswer = true;
-          session.quizState.isBuzzerActive = false;
-          broadcast({ type: 'SCORES_UPDATED', payload: getCleanQuizState() });
-        } else {
-          session.quizState.ineligibleStudents.push(session.quizState.activeStudent);
-          session.quizState.activeStudent = null;
-          session.quizState.isBuzzerActive = true;
-          startTimer();
-          broadcast({ type: 'BUZZER_OPEN', payload: getCleanQuizState() });
         }
         break;
 
       case 'END_QUIZ':
-        clearInterval(session.quizState.timerId);
-        const db_end = await getDbConnection();
-        await db_end.execute('UPDATE sessions SET is_active = 0 WHERE id = ?', [sessionId]);
+        {
+          if (sessionTimers[sessionId]) clearInterval(sessionTimers[sessionId]);
 
-        let finalScores = {};
+          const state = await getQuizState(sessionId);
+          const db_end = await getDbConnection();
+          await db_end.execute('UPDATE sessions SET is_active = 0 WHERE id = ?', [sessionId]);
 
-        if (session.quizState.scoringMode === 'individual') {
-          const [studentTotalScores] = await db_end.execute('SELECT student_id, SUM(score) as total_score FROM student_question_scores WHERE session_id = ? GROUP BY student_id', [sessionId]);
-          for (const row of studentTotalScores) {
-            finalScores[row.student_id] = Number(row.total_score);
-            // Insert or update into student_scores
-            await db_end.execute(
-              `INSERT INTO student_scores (student_id, session_id, score)
-               VALUES (?, ?, ?)
-               ON DUPLICATE KEY UPDATE score = VALUES(score)`,
-              [row.student_id, sessionId, Number(row.total_score)]
-            );
+          let finalScores = {};
+
+          if (state.scoringMode === 'individual') {
+            const [studentTotalScores] = await db_end.execute('SELECT student_id, SUM(score) as total_score FROM student_question_scores WHERE session_id = ? GROUP BY student_id', [sessionId]);
+            for (const row of studentTotalScores) {
+              finalScores[row.student_id] = Number(row.total_score);
+              // Insert or update into student_scores
+              await db_end.execute(
+                `INSERT INTO student_scores (student_id, session_id, score)
+                 VALUES (?, ?, ?)
+                 ON DUPLICATE KEY UPDATE score = VALUES(score)`,
+                [row.student_id, sessionId, Number(row.total_score)]
+              );
+            }
+          } else { // department scoring
+            const [departmentTotalScores] = await db_end.execute(`
+              SELECT d.name, SUM(sqs.score) as total_score, s.department_id
+              FROM student_question_scores sqs
+              JOIN students s ON sqs.student_id = s.student_id
+              JOIN departments d ON s.department_id = d.id
+              WHERE sqs.session_id = ?
+              GROUP BY d.name, s.department_id
+            `, [sessionId]);
+
+            for (const row of departmentTotalScores) {
+              finalScores[row.name] = Number(row.total_score); // Fixed typo from total_total
+              // Insert or update into department_scores
+              await db_end.execute(
+                `INSERT INTO department_scores (department_id, session_id, score)
+                 VALUES (?, ?, ?)
+                 ON DUPLICATE KEY UPDATE score = VALUES(score)`,
+                [row.department_id, sessionId, Number(row.total_score)]
+              );
+            }
           }
-        } else { // department scoring
-          const [departmentTotalScores] = await db_end.execute(`
-            SELECT d.name, SUM(sqs.score) as total_score, s.department_id
-            FROM student_question_scores sqs
-            JOIN students s ON sqs.student_id = s.student_id
-            JOIN departments d ON s.department_id = d.id
-            WHERE sqs.session_id = ?
-            GROUP BY d.name, s.department_id
-          `, [sessionId]);
+          state.isQuizStarted = false;
+          state.isQuizEnded = true;
+          state.scores = finalScores;
 
-          for (const row of departmentTotalScores) {
-            finalScores[row.name] = Number(row.total_total);
-            // Insert or update into department_scores
-            await db_end.execute(
-              `INSERT INTO department_scores (department_id, session_id, score)
-               VALUES (?, ?, ?)
-               ON DUPLICATE KEY UPDATE score = VALUES(score)`,
-              [row.department_id, sessionId, Number(row.total_score)]
-            );
-          }
+          await saveQuizState(sessionId, state);
+
+          broadcast(sessionId, { type: 'QUIZ_ENDED', payload: { ...state, finalScores } });
         }
-        session.quizState.isQuizStarted = false;
-        session.quizState.isQuizEnded = true;
-        session.quizState.scores = finalScores;
-        broadcast({ type: 'QUIZ_ENDED', payload: { ...getCleanQuizState(), finalScores } });
         break;
 
       default:
@@ -306,14 +421,16 @@ wss.on('connection', ws => {
 
   ws.on('close', () => {
     console.log('Client disconnected');
-    for (const sessionId in sessions) {
-      if (sessions[sessionId].clients.has(ws)) {
-        sessions[sessionId].clients.delete(ws);
-        if (sessions[sessionId].admin === ws) {
-          sessions[sessionId].admin = null;
-        }
-        sessions[sessionId].students.delete(ws);
-        break;
+    for (const sessionId in activeConnections) {
+      const connections = activeConnections[sessionId];
+      if (connections.students.has(ws)) {
+        connections.students.delete(ws);
+      }
+      if (connections.spectators.has(ws)) {
+        connections.spectators.delete(ws);
+      }
+      if (connections.admin === ws) {
+        connections.admin = null;
       }
     }
   });

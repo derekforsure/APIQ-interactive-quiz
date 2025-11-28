@@ -151,10 +151,14 @@ export default function SessionParticipantsPage() {
 
   useEffect(() => {
     if (!sessionId) return;
-    fetchSessionDetails();
-    fetchParticipants();
-    fetchSessionQuestions();
-    fetchCategories();
+    
+    // Fetch these in parallel for better performance
+    Promise.all([
+      fetchSessionDetails(),
+      fetchParticipants(),
+      fetchSessionQuestions(),
+      fetchCategories()
+    ]);
   }, [sessionId, fetchSessionDetails, fetchParticipants, fetchSessionQuestions, fetchCategories]);
 
   useEffect(() => {

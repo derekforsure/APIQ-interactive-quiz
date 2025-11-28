@@ -10,11 +10,15 @@ export function useQuizAudio() {
   }, []);
 
   const playCorrect = () => {
-    correctSoundRef.current?.play();
+    correctSoundRef.current?.play().catch(err => {
+      console.log('Audio play blocked by browser:', err);
+    });
   };
 
   const playIncorrect = () => {
-    incorrectSoundRef.current?.play();
+    incorrectSoundRef.current?.play().catch(err => {
+      console.log('Audio play blocked by browser:', err);
+    });
   };
 
   return { playCorrect, playIncorrect };
