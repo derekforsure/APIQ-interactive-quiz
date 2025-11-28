@@ -24,6 +24,7 @@ interface QuizState {
   showAnswer: boolean;
   isQuizEnded: boolean;
   isQuizStarted: boolean;
+  isReadingPeriod: boolean;
 }
 
 const shuffleArray = (array: any[]) => {
@@ -125,12 +126,12 @@ export default function PresentationPage() {
       quizMusicAudioRef.current.loop = true;
     }
 
-    if (quizState?.isBuzzerActive && quizState.remainingTime > 0) {
+    if ((quizState?.isBuzzerActive || quizState?.isReadingPeriod) && quizState.remainingTime > 0) {
       quizMusicAudioRef.current.play().catch(error => console.error("Quiz music audio play failed:", error));
     } else {
       quizMusicAudioRef.current.pause();
     }
-  }, [quizState?.isBuzzerActive, quizState?.remainingTime]);
+  }, [quizState?.isBuzzerActive, quizState?.isReadingPeriod, quizState?.remainingTime]);
 
   // Effect for leaderboard music
   useEffect(() => {
@@ -381,7 +382,7 @@ export default function PresentationPage() {
                 )}
 
                 {/* Answer Options Grid */}
-                {currentQuestion && (
+                {!quizState.isReadingPeriod && currentQuestion && (
                   <div className="grid grid-cols-2 gap-6">
                     {shuffledOptions.map((option, index) => {
                       const isCorrect = option === currentQuestion.answer;
@@ -390,9 +391,10 @@ export default function PresentationPage() {
                       return (
                         <div
                           key={index}
-                          className={`relative group transition-all duration-500 ${
+                          className={`relative group transition-all duration-500 animate-fade-in ${
                             shouldHighlight ? 'scale-105' : 'hover:scale-102'
                           }`}
+                          style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
                         >
                           <div className={`absolute inset-0 rounded-2xl blur-xl transition-all duration-500 ${
                             shouldHighlight 

@@ -19,6 +19,7 @@ interface QuizState {
   scores: Record<string, number>;
   remainingTime: number;
   ineligibleStudents: string[];
+  isReadingPeriod: boolean;
 }
 
 export default function StudentQuizPage() {
@@ -153,7 +154,7 @@ export default function StudentQuizPage() {
           {quizState.activeStudent ? (
             <p>{amIActive ? 'You' : quizState.activeStudent} buzzed in!</p>
           ) : (
-            <p>{quizState.isBuzzerActive ? 'Buzzer is active!' : 'Waiting for next question...'}</p>
+            <p>{quizState.isReadingPeriod ? 'Reading Period...' : (quizState.isBuzzerActive ? 'Buzzer is active!' : 'Waiting for next question...')}</p>
           )}
           {amIIneligible && <p className="text-red-500">You can&apos;t answer this question again.</p>}
         </div>

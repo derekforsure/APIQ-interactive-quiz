@@ -62,6 +62,7 @@ wss.on('connection', ws => {
           timerId: null,
           ineligibleStudents: [],
           showAnswer: false,
+          isReadingPeriod: false,
         },
       };
     }
@@ -71,6 +72,7 @@ wss.on('connection', ws => {
     const getCleanQuizState = () => {
       const cleanState = { ...session.quizState };
       delete cleanState.timerId;
+      delete cleanState.readingTimerId;
       return cleanState;
     };
 
@@ -114,31 +116,32 @@ wss.on('connection', ws => {
       case 'START_QUIZ':
         // Clear any existing timer
         clearInterval(session.quizState.timerId);
-        
+
         // Don't set isQuizStarted yet - only after countdown completes
         session.quizState.isQuizEnded = false;
         session.quizState.isBuzzerActive = false;
         session.quizState.remainingTime = 10000;
         session.quizState.showAnswer = false;
+        session.quizState.isReadingPeriod = false;
         session.quizState.ineligibleStudents = [];
         session.quizState.currentQuestionIndex = 0;
         session.quizState.scores = {};
-        
+
         // Get server timestamp for synchronized countdown
         const countdownStartTime = Date.now();
-        
+
         // Broadcast START_QUIZ for initial setup
         broadcast({ type: 'START_QUIZ', payload: getCleanQuizState() });
-        
+
         // Send countdown info immediately with server timestamp
-        broadcast({ 
-          type: 'COUNTDOWN_START', 
-          payload: { 
+        broadcast({
+          type: 'COUNTDOWN_START',
+          payload: {
             serverTime: countdownStartTime,
             duration: 4000 // 4 second countdown
-          } 
+          }
         });
-        
+
         // Start quiz after 4 seconds
         setTimeout(() => {
           session.quizState.isQuizStarted = true;
@@ -156,6 +159,7 @@ wss.on('connection', ws => {
         session.quizState.isBuzzerActive = false;
         session.quizState.remainingTime = 10000;
         session.quizState.showAnswer = false;
+        session.quizState.isReadingPeriod = false;
         session.quizState.ineligibleStudents = [];
         session.quizState.currentQuestionIndex = 0;
         session.quizState.scores = {};
@@ -164,14 +168,26 @@ wss.on('connection', ws => {
 
       case 'NEXT_QUESTION':
         clearInterval(session.quizState.timerId);
+        clearTimeout(session.quizState.readingTimerId); // Clear any pending reading period
+
         session.quizState.currentQuestionIndex += 1;
-        session.quizState.isBuzzerActive = true;
+        session.quizState.isBuzzerActive = false;
         session.quizState.activeStudent = null;
         session.quizState.remainingTime = 10000;
         session.quizState.ineligibleStudents = [];
         session.quizState.showAnswer = false;
-        startTimer();
+        session.quizState.isReadingPeriod = true;
+
+        // Broadcast immediately so students see the new question
         broadcast({ type: 'NEW_QUESTION', payload: getCleanQuizState() });
+
+        // Start 3-second reading period
+        session.quizState.readingTimerId = setTimeout(() => {
+          session.quizState.isBuzzerActive = true;
+          session.quizState.isReadingPeriod = false;
+          startTimer();
+          broadcast({ type: 'BUZZER_OPEN', payload: getCleanQuizState() });
+        }, 5000);
         break;
 
       case 'BUZZ':
@@ -208,7 +224,7 @@ wss.on('connection', ws => {
             const [rows] = await db.execute('SELECT d.id, d.name FROM students s JOIN departments d ON s.department_id = d.id WHERE s.student_id = ?', [studentId]);
             if (rows.length > 0) {
               const department = rows[0];
-              
+
               // Analytics write for the individual student
               await retryDbOperation(async () => {
                 await db.execute('INSERT INTO student_question_scores (session_id, student_id, question_id, score) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE score = VALUES(score)', [sessionId, studentId, currentQuestionId, points]);
