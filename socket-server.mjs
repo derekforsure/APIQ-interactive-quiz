@@ -40,7 +40,13 @@ wss.on('connection', ws => {
   console.log('Client connected');
 
   ws.on('message', async message => {
-    const data = JSON.parse(message);
+    let data;
+    try {
+      data = JSON.parse(message);
+    } catch (e) {
+      console.error('Failed to parse message:', message);
+      return;
+    }
     const { type, payload } = data;
     console.log(`[${payload.sessionId || 'N/A'}] Received message: type=${type}, payload=`, payload);
     const { sessionId } = payload;
