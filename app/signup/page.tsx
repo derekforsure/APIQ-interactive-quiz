@@ -1,12 +1,15 @@
-"use client";
-import { useState } from "react";
-import Image from "next/image";
+'use client';
 
-import { toast } from "sonner";
+import { useState } from 'react';
+import { toast } from 'sonner';
+import Image from 'next/image';
 
-export default function LoginPage() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+export default function SignupPage() {
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: '',
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -14,34 +17,21 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, password }),
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       });
 
       const data = await res.json();
 
-      if (res.ok) {
-        toast.success("Login successful! Redirecting...");
-        // Success - redirect to admin dashboard
-        window.location.href = "/admin/dashboard";
-      } else if (res.status === 403) {
-        // Trial expired
-        toast.error(data.message || "Your trial has expired.", {
-          duration: 10000,
-          action: {
-            label: 'Subscribe',
-            onClick: () => window.location.href = '/admin/subscription'
-          }
-        });
-      } else {
-        toast.error(data.message || "Login failed. Please try again.");
+      if (!res.ok) {
+        throw new Error(data.message || 'Signup failed');
       }
-    } catch {
-      toast.error("An error occurred. Please try again.");
+
+      toast.success('Signup successful! Please check your email to verify.');
+    } catch (error) {
+      toast.error((error as Error).message);
     } finally {
       setIsLoading(false);
     }
@@ -73,8 +63,8 @@ export default function LoginPage() {
             <div className="mx-auto w-50 h-50 mb-4">
               <Image src="/icon.svg" alt="APIQ Logo" width={1000} height={1000} />
             </div>
-            <h1 className="text-xl font-semibold text-gray-900">Welcome Back</h1>
-            <p className="text-sm text-gray-600 mt-1">Sign in to your account to continue</p>
+            <h1 className="text-xl font-semibold text-gray-900">Create Admin Account</h1>
+            <p className="text-sm text-gray-600 mt-1">Sign up to get a <span className="font-semibold text-indigo-600">7-day free trial</span></p>
           </div>
 
           {/* Form */}
@@ -86,8 +76,8 @@ export default function LoginPage() {
               <input
                 type="text"
                 id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 placeholder="Enter your username"
                 required
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
@@ -95,14 +85,29 @@ export default function LoginPage() {
             </div>
             
             <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Email Address
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="Enter your email"
+                required
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Password
               </label>
               <input
                 type="password"
                 id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 placeholder="Enter your password"
                 required
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
@@ -117,14 +122,14 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Signing in...
+                  Creating account...
                 </>
               ) : (
                 <>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                   </svg>
-                  Sign In
+                  Sign Up
                 </>
               )}
             </button>
@@ -133,7 +138,7 @@ export default function LoginPage() {
           {/* Footer */}
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
             <p className="text-xs text-center text-gray-500">
-              Quiz Management System! <a href="/signup" className="ml-1 text-indigo-600 hover:text-indigo-700 font-medium">Sign up</a>
+              Already have an account? <a href="/" className="text-indigo-600 hover:text-indigo-700 font-medium">Sign in</a>
             </p>
           </div>
         </div>

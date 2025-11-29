@@ -32,9 +32,10 @@ export async function POST(req: NextRequest) {
 
     connection = await getConnection();
     const [rows] = (await connection.execute(
-      "SELECT id, username, password FROM admins WHERE username = ?",
+      `SELECT id, username, password, subscription_status, trial_started_at 
+       FROM admins WHERE username = ?`,
       [username]
-    )) as [{ id: number; username: string; password: string }[], unknown];
+    )) as [{ id: number; username: string; password: string; subscription_status: string; trial_started_at: Date | null }[], unknown];
 
     if (rows.length === 0) {
       return errorResponse("Invalid username or password", 401);
@@ -45,6 +46,17 @@ export async function POST(req: NextRequest) {
 
     if (!passwordMatch) {
       return errorResponse("Invalid username or password", 401);
+    }
+
+    // Check if trial has expired
+    if (user.subscription_status !== 'active' && user.trial_started_at) {
+      const trialStart = new Date(user.trial_started_at);
+      const now = new Date();
+      const daysSinceTrialStart = Math.floor((now.getTime() - trialStart.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysSinceTrialStart >= 7) {
+        return errorResponse("Your 7-day trial has expired. Please subscribe to continue using the platform.", 403);
+      }
     }
 
     const sessionId = randomBytes(16).toString("hex");

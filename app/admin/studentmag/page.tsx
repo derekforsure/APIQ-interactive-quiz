@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { TableSkeleton } from '@/components/ui/skeletons';
 
 interface Student {
   id: number;
@@ -19,6 +20,7 @@ interface Department {
 
 export default function StudentManagementPage() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [newStudent, setNewStudent] = useState({ student_id: '', name: '', department_id: '' });
@@ -28,6 +30,7 @@ export default function StudentManagementPage() {
 
   const fetchStudents = useCallback(async () => {
     try {
+      setLoading(true);
       const url = new URL('/api/students', window.location.origin);
       if (filterStatus === 'active') {
         url.searchParams.append('is_active', '1');
@@ -55,6 +58,8 @@ export default function StudentManagementPage() {
       console.error('Network or parsing error fetching students:', error);
       setStudents([]);
       alert('Failed to fetch students due to a network error.');
+    } finally {
+      setLoading(false);
     }
   }, [filterStatus, departmentId]);
 
@@ -202,68 +207,76 @@ export default function StudentManagementPage() {
         </div>
         
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Student ID
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Department
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {students.map((student) => (
-                <tr key={student.id} className={`transition-colors ${student.is_active === 0 ? 'bg-gray-50' : 'hover:bg-gray-50'}`}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-medium text-gray-900 font-mono bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                      {student.student_id}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {student.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {student.department}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${
-                      student.is_active === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {student.is_active === 1 ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {student.is_active === 1 ? (
-                      <button 
-                        onClick={() => handleDelete(student.id)} 
-                        className="text-gray-600 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
-                      >
-                        Deactivate
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => handleActivate(student.id)} 
-                        className="text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors"
-                      >
-                        Activate
-                      </button>
-                    )}
-                  </td>
+          {loading ? (
+            <TableSkeleton />
+          ) : students.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="mt-2 text-sm text-gray-500">No students found.</p>
+            </div>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Student ID
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Department
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {students.map((student) => (
+                  <tr key={student.id} className={`transition-colors ${student.is_active === 0 ? 'bg-gray-50' : 'hover:bg-gray-50'}`}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-medium text-gray-900 font-mono bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                        {student.student_id}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {student.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {student.department}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${
+                        student.is_active === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {student.is_active === 1 ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {student.is_active === 1 ? (
+                        <button 
+                          onClick={() => handleDelete(student.id)} 
+                          className="text-gray-600 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          Deactivate
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleActivate(student.id)} 
+                          className="text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          Activate
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 

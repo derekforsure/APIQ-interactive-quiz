@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { TableSkeleton } from '@/components/ui/skeletons';
 
 interface Department {
   id: number;
@@ -11,12 +12,14 @@ interface Department {
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [newDepartmentName, setNewDepartmentName] = useState('');
 
   const fetchDepartments = useCallback(async () => {
     try {
+      setLoading(true);
       const res = await fetch('/api/departments');
       const responseData = await res.json();
       if (res.ok) {
@@ -28,6 +31,8 @@ export default function DepartmentsPage() {
     } catch (error) {
       console.error('Network or parsing error fetching departments:', error);
       alert('Failed to fetch departments due to a network error.');
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -110,55 +115,57 @@ export default function DepartmentsPage() {
         </div>
         
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Students
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {departments.map((department) => (
-                <tr key={department.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {department.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{department.student_count}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Link href={`/admin/studentmag?departmentId=${department.id}`} className="text-indigo-600 hover:text-indigo-900">
-                      View Students
-                    </Link>
-                    <button 
-                      onClick={() => handleEdit(department)} 
-                      className="ml-4 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(department.id)} 
-                      className="ml-2 text-gray-600 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      Delete
-                    </button>
-                  </td>
+          {loading ? (
+            <TableSkeleton />
+          ) : departments.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="mt-2 text-sm text-gray-500">No departments found.</p>
+            </div>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Students
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {departments.map((department) => (
+                  <tr key={department.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {department.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{department.student_count}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <Link href={`/admin/studentmag?departmentId=${department.id}`} className="text-indigo-600 hover:text-indigo-900">
+                        View Students
+                      </Link>
+                      <button 
+                        onClick={() => handleEdit(department)} 
+                        className="ml-4 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(department.id)} 
+                        className="ml-2 text-gray-600 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
-        
-        {departments.length === 0 && (
-          <div className="text-center py-12">
-            <p className="mt-2 text-sm text-gray-500">No departments found.</p>
-          </div>
-        )}
       </div>
 
       {showModal && (
