@@ -2,6 +2,8 @@
 import { useState } from "react";
 import Image from "next/image";
 
+import { toast } from "sonner";
+
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -23,13 +25,14 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
+        toast.success("Login successful! Redirecting...");
         // Success - redirect to admin dashboard
         window.location.href = "/admin/dashboard";
       } else {
-        alert(data.message || "Login failed. Please try again.");
+        toast.error(data.message || "Login failed. Please try again.");
       }
     } catch {
-      alert("An error occurred. Please try again.");
+      toast.error("An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }

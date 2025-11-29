@@ -9,8 +9,14 @@ interface ScoreEvent extends RowDataPacket {
   created_at: Date;
 }
 
-export async function GET(request: NextRequest, { params }: { params: { sessionId: string } }) {
-  const { sessionId } = params;
+interface QuestionBreakdown extends RowDataPacket {
+  question_text: string;
+  score_for_question: number;
+  answered_at: Date;
+}
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ sessionId: string }> }) {
+  const { sessionId } = await params;
   let connection;
 
   try {
@@ -41,7 +47,7 @@ export async function GET(request: NextRequest, { params }: { params: { sessionI
     });
 
     // Query for question-by-question breakdown (for the table)
-    const [breakdownRows] = await connection.execute(`
+    const [breakdownRows] = await connection.execute<QuestionBreakdown[]>(`
       SELECT
         q.text AS question_text,
         SUM(sqs.score) AS score_for_question,
@@ -53,7 +59,7 @@ export async function GET(request: NextRequest, { params }: { params: { sessionI
       ORDER BY answered_at;
     `, [sessionId]);
 
-    const questionBreakdown = (breakdownRows as any[]).map(row => ({
+    const questionBreakdown = breakdownRows.map(row => ({
       question_text: row.question_text,
       score_for_question: row.score_for_question,
       answered_at: new Date(row.answered_at).toLocaleString(),

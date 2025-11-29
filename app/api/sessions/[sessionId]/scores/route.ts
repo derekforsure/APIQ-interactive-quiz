@@ -9,11 +9,11 @@ interface ScoreResult extends RowDataPacket {
 
 export async function GET(
   request: Request,
-  context: { params: { sessionId: string } }
+  context: { params: Promise<{ sessionId: string }> }
 ) {
+  const { sessionId } = await context.params;
   let connection;
   try {
-    const { sessionId } = await context.params;
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get('mode') || 'individual'; // Default to individual
 

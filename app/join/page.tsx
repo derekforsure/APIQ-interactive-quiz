@@ -3,28 +3,29 @@
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
 
+import { toast } from "sonner";
+
 function JoinPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const sessionId = searchParams.get('session_id');
   const [studentId, setStudentId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Removed error state as we use toasts now
 
   useEffect(() => {
     if (!sessionId) {
-      setError('No session ID provided. Please scan a valid QR code.');
+      toast.error('No session ID provided. Please scan a valid QR code.');
     }
   }, [sessionId]);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!studentId) {
-      setError('Please enter your Student ID.');
+      toast.warning('Please enter your Student ID.');
       return;
     }
     setIsLoading(true);
-    setError(null);
 
     try {
       const response = await fetch('/api/students/join', {
@@ -41,25 +42,17 @@ function JoinPageContent() {
         throw new Error(data.message || 'Failed to join the session.');
       }
 
+      toast.success('Successfully joined session!');
       // On success, redirect the student to their dashboard or quiz page
       router.push('/student/quiz');
 
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
       setIsLoading(false);
     }
   };
 
-  if (error && !sessionId) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center">
-          <h1 className="text-2xl font-bold text-red-600">Error</h1>
-          <p className="text-gray-700 mt-2">{error}</p>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -83,7 +76,7 @@ function JoinPageContent() {
               disabled={isLoading}
             />
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+
           <div>
             <button
               type="submit"

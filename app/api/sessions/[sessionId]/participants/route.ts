@@ -1,14 +1,15 @@
 import { getConnection } from "@/utils/db";
 import { NextRequest, NextResponse } from "next/server";
+import { RowDataPacket } from "mysql2";
 
-interface Participant {
+interface Participant extends RowDataPacket {
   student_id: string;
   name: string;
 }
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await params;
 
@@ -22,13 +23,13 @@ export async function GET(
   let connection;
   try {
     connection = await getConnection();
-    const [participants] = (await connection.execute(
+    const [participants] = await connection.execute<Participant[]>(
       `SELECT s.student_id, s.name
        FROM students s
        JOIN session_participants sp ON s.student_id = sp.student_id
        WHERE sp.session_id = ?`,
       [sessionId]
-    )) as Participant[];
+    );
 
     return NextResponse.json(participants);
   } catch (error) {

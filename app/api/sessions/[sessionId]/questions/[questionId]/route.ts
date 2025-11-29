@@ -2,12 +2,10 @@ import { getConnection } from '@/utils/db';
 import { successResponse, errorResponse } from '@/lib/apiResponse';
 import { ResultSetHeader } from 'mysql2';
 
-export async function DELETE(request: Request, { params }: { params: { sessionId: string, questionId: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ sessionId: string, questionId: string }> }) {
+  const { sessionId, questionId } = await params;
   let connection;
   try {
-    const sessionId = params.sessionId;
-    const questionId = params.questionId;
-
     connection = await getConnection();
     const [result] = await connection.execute(
       'DELETE FROM session_questions WHERE session_id = ? AND question_id = ?',

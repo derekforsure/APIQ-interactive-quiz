@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server';
 
 export async function POST(
   request: NextRequest,
-  context: { params: { sessionId: string } },
+  context: { params: Promise<{ sessionId: string }> },
 ) {
   const { sessionId } = await context.params;
   let connection;

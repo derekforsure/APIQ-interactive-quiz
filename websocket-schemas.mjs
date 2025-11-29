@@ -26,7 +26,10 @@ export const SetScoringModeSchema = z.object({
 // START_QUIZ message schema
 export const StartQuizSchema = z.object({
     type: z.literal('START_QUIZ'),
-    payload: BasePayloadSchema,
+    payload: BasePayloadSchema.extend({
+        readingTime: z.number().int().min(3000).max(30000).optional(), // 3-30 seconds in ms
+        quizTime: z.number().int().min(5000).max(60000).optional(), // 5-60 seconds in ms
+    }),
 });
 
 // RESET_STATE message schema

@@ -3,6 +3,17 @@ import WebSocket, { WebSocketServer } from 'ws';
 import mysql from 'mysql2/promise';
 import Redis from 'ioredis';
 import { WebSocketMessageSchema } from './websocket-schemas.mjs';
+import {
+  QUIZ_TIMER_DURATION,
+  COUNTDOWN_BUFFER,
+  READING_PERIOD_DURATION,
+  SCORE_3_THRESHOLD,
+  SCORE_2_THRESHOLD,
+  REDIS_SESSION_TTL,
+  TIMER_UPDATE_INTERVAL,
+  DEFAULT_READING_TIME,
+  DEFAULT_QUIZ_TIME
+} from './lib/constants.mjs';
 
 const wss = new WebSocketServer({ port: 3001 });
 const redis = new Redis({
@@ -59,17 +70,19 @@ async function getQuizState(sessionId) {
     activeStudent: null,
     currentQuestionIndex: 0,
     scores: {},
-    remainingTime: 10000,
+    remainingTime: QUIZ_TIMER_DURATION,
     ineligibleStudents: [],
     showAnswer: false,
     isReadingPeriod: false,
+    readingTime: DEFAULT_READING_TIME,
+    quizTime: DEFAULT_QUIZ_TIME,
   };
 }
 
 // Helper to save quiz state to Redis
 async function saveQuizState(sessionId, state) {
   // Save with 24h TTL to prevent stale data piling up
-  await redis.set(`quiz:${sessionId}`, JSON.stringify(state), 'EX', 86400);
+  await redis.set(`quiz:${sessionId}`, JSON.stringify(state), 'EX', REDIS_SESSION_TTL);
 }
 
 // Helper to get active connections for a session
@@ -197,14 +210,22 @@ wss.on('connection', ws => {
           if (sessionTimers[sessionId]) clearInterval(sessionTimers[sessionId]);
 
           const state = await getQuizState(sessionId);
+          // Extract timer config from payload (with defaults)
+          const readingTime = payload.readingTime || DEFAULT_READING_TIME;
+          const quizTime = payload.quizTime || DEFAULT_QUIZ_TIME;
+
+          console.log(`[START_QUIZ] Timer config - Reading: ${readingTime}ms, Quiz: ${quizTime}ms`);
+
           state.isQuizEnded = false;
           state.isBuzzerActive = false;
-          state.remainingTime = 10000;
+          state.remainingTime = quizTime;
           state.showAnswer = false;
           state.isReadingPeriod = false;
           state.ineligibleStudents = [];
           state.currentQuestionIndex = 0;
           state.scores = {};
+          state.readingTime = readingTime;
+          state.quizTime = quizTime;
 
           await saveQuizState(sessionId, state);
 
@@ -228,7 +249,7 @@ wss.on('connection', ws => {
             const freshState = await getQuizState(sessionId);
             freshState.isQuizStarted = true;
             freshState.isBuzzerActive = true;
-            freshState.remainingTime = 10000;
+            freshState.remainingTime = freshState.quizTime;
             await saveQuizState(sessionId, freshState);
 
             startTimer(sessionId);
@@ -265,7 +286,7 @@ wss.on('connection', ws => {
           state.currentQuestionIndex += 1;
           state.isBuzzerActive = false;
           state.activeStudent = null;
-          state.remainingTime = 10000;
+          state.remainingTime = state.quizTime || DEFAULT_QUIZ_TIME;
           state.ineligibleStudents = [];
           state.showAnswer = false;
           state.isReadingPeriod = true;
@@ -275,7 +296,8 @@ wss.on('connection', ws => {
           // Broadcast immediately so students see the new question
           broadcast(sessionId, { type: 'NEW_QUESTION', payload: state });
 
-          // Start 3-second reading period
+          // Start reading period (use configured time)
+          const readingPeriod = state.readingTime || DEFAULT_READING_TIME;
           setTimeout(async () => {
             const freshState = await getQuizState(sessionId);
             freshState.isBuzzerActive = true;
@@ -284,7 +306,7 @@ wss.on('connection', ws => {
 
             startTimer(sessionId);
             broadcast(sessionId, { type: 'BUZZER_OPEN', payload: freshState });
-          }, 5000);
+          }, readingPeriod);
         }
         break;
 
@@ -310,10 +332,10 @@ wss.on('connection', ws => {
           if (payload.correct) {
             if (sessionTimers[sessionId]) clearInterval(sessionTimers[sessionId]);
 
-            const timeTaken = 10000 - state.remainingTime;
+            const timeTaken = QUIZ_TIMER_DURATION - state.remainingTime;
             let points = 0;
-            if (timeTaken <= 3333) points = 3;
-            else if (timeTaken <= 6666) points = 2;
+            if (timeTaken <= SCORE_3_THRESHOLD) points = 3;
+            else if (timeTaken <= SCORE_2_THRESHOLD) points = 2;
             else points = 1;
 
             const db = await getDbConnection();

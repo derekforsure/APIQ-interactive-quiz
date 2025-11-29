@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { QuizState } from '@/hooks/useQuizSocket';
 
 interface Question {
@@ -11,7 +11,7 @@ interface QuizQuestionPanelProps {
   questions: Question[];
   quizState: QuizState | null;
   isConnected: boolean;
-  onStartQuiz: () => void;
+  onStartQuiz: (readingTime: number, quizTime: number) => void;
   onNextQuestion: () => void;
   onEndQuiz: () => void;
   onResetScores: () => void;
@@ -26,6 +26,9 @@ export function QuizQuestionPanel({
   onEndQuiz,
   onResetScores,
 }: QuizQuestionPanelProps) {
+  const [readingTime, setReadingTime] = useState(5); // seconds
+  const [quizTime, setQuizTime] = useState(10); // seconds
+  
   const isQuizEnded = quizState?.isQuizEnded;
   const isQuizStarted = quizState?.isQuizStarted;
   const currentQuestion = questions[quizState?.currentQuestionIndex ?? 0];
@@ -85,12 +88,52 @@ export function QuizQuestionPanel({
           </div>
         )}
       </div>
-      <div className="p-5 border-t border-gray-200 space-y-2">
+      <div className="p-5 border-t border-gray-200 space-y-3">
+        {/* Timer Configuration (only show before quiz starts) */}
+        {Boolean(!isQuizStarted && !isQuizEnded) && (
+          <div className="bg-gray-50 rounded-lg border border-gray-200 p-3">
+            <p className="text-xs font-medium text-gray-700 mb-2">Timer Settings</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="readingTime" className="block text-xs text-gray-600 mb-1">
+                  Reading Time (seconds)
+                </label>
+                <input
+                  id="readingTime"
+                  type="number"
+                  min="3"
+                  max="30"
+                  value={readingTime}
+                  onChange={(e) => setReadingTime(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="quizTime" className="block text-xs text-gray-600 mb-1">
+                  Answer Time (seconds)
+                </label>
+                <input
+                  id="quizTime"
+                  type="number"
+                  min="5"
+                  max="60"
+                  value={quizTime}
+                  onChange={(e) => setQuizTime(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="flex gap-2">
           {/* Start Quiz Button */}
           {Boolean(!isQuizStarted && !isQuizEnded) && (
             <button
-              onClick={onStartQuiz}
+              onClick={() => {
+                console.log(`[QuizQuestionPanel] Starting quiz with timers - Reading: ${readingTime}s (${readingTime * 1000}ms), Quiz: ${quizTime}s (${quizTime * 1000}ms)`);
+                onStartQuiz(readingTime * 1000, quizTime * 1000);
+              }}
               disabled={Boolean(!isConnected || !quizState)}
               className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >

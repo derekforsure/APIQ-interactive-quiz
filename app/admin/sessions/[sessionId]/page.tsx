@@ -81,21 +81,27 @@ export default function SessionParticipantsPage() {
     }
   }, [sessionId]);
 
-  const fetchParticipants = useCallback(async () => {
+  const fetchParticipants = useCallback(async (isInitialLoad = false) => {
     try {
-      setLoading(true);
+      if (isInitialLoad) setLoading(true);
       const response = await fetch(`/api/sessions/${sessionId}/participants`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(`Error: ${response.status} - ${errorData.message || response.statusText}`);
       }
       const data: Participant[] = await response.json();
-      setParticipants(data);
+      // Only update if data has changed
+      setParticipants(prev => {
+        if (JSON.stringify(prev) !== JSON.stringify(data)) {
+          return data;
+        }
+        return prev;
+      });
     } catch (err) {
       setError((err as Error).message);
       console.error('Failed to fetch participants:', err);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) setLoading(false);
     }
   }, [sessionId]);
 
@@ -107,7 +113,14 @@ export default function SessionParticipantsPage() {
         throw new Error(`Error: ${response.status}`);
       }
       const data = await response.json();
-      setSessionQuestions(data.data || []);
+      const questions: Question[] = data.data || [];
+      // Only update if data has changed
+      setSessionQuestions(prev => {
+        if (JSON.stringify(prev) !== JSON.stringify(questions)) {
+          return questions;
+        }
+        return prev;
+      });
     } catch (err) {
       setError((err as Error).message);
       console.error('Failed to fetch session questions:', err);
@@ -155,7 +168,7 @@ export default function SessionParticipantsPage() {
     // Fetch these in parallel for better performance
     Promise.all([
       fetchSessionDetails(),
-      fetchParticipants(),
+      fetchParticipants(true), // Initial load
       fetchSessionQuestions(),
       fetchCategories()
     ]);
@@ -245,12 +258,71 @@ export default function SessionParticipantsPage() {
     setCurrentScoringMode(mode);
   }, []);
 
+  const handleToggleActivation = async () => {
+    if (!sessionDetails) return;
+    
+    try {
+      const response = await fetch('/api/sessions/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          is_active: !sessionDetails.is_active
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update session');
+      }
+      
+      // Refresh session details
+      await fetchSessionDetails();
+    } catch (err) {
+      alert(`Failed to toggle session: ${(err as Error).message}`);
+      console.error('Error toggling session:', err);
+    }
+  };
+
+  // Live polling for participant and question counts
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchParticipants(false); // Polling - no loading state
+      fetchSessionQuestions();
+    }, 5000); // Poll every 5 seconds
+    
+    return () => clearInterval(interval);
+  }, [fetchParticipants, fetchSessionQuestions]);
+
   return (
     <div className="relative space-y-6">
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">{sessionDetails?.name || "Session Details"}</h1>
-          <p className="text-gray-600 mt-2">
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold text-gray-900">{sessionDetails?.name || "Session Details"}</h1>
+            {sessionDetails && (
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                sessionDetails.is_active 
+                  ? 'bg-emerald-100 text-emerald-700' 
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {sessionDetails.is_active ? '✓ Active' : 'Inactive'}
+              </span>
+            )}
+            {sessionDetails && (
+              <button
+                onClick={handleToggleActivation}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  sessionDetails.is_active
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                }`}
+              >
+                {sessionDetails.is_active ? 'Deactivate' : 'Activate'}
+              </button>
+            )}
+          </div>
+          <p className="text-gray-600 mb-2 mt-2">
             Session ID: <span className="font-mono bg-gray-50 px-2 py-1 rounded border border-gray-200 text-sm">{sessionId}</span>
           </p>
         </div>
@@ -279,7 +351,7 @@ export default function SessionParticipantsPage() {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Questions
+            Questions ({sessionQuestions.length})
           </button>
           <button
             onClick={() => setSelectedTab('participants')}
@@ -289,7 +361,7 @@ export default function SessionParticipantsPage() {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Participants
+            Participants ({participants.length})
           </button>
           <button
             onClick={() => setSelectedTab('scoreboard')}

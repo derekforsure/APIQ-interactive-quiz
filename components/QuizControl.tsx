@@ -136,7 +136,7 @@ export default function QuizControl({ sessionId, onScoringModeChange }: QuizCont
           questions={questions}
           quizState={quizState}
           isConnected={isConnected}
-          onStartQuiz={() => sendCommand('START_QUIZ')}
+          onStartQuiz={(readingTime, quizTime) => sendCommand('START_QUIZ', { readingTime, quizTime })}
           onNextQuestion={handleNextQuestion}
           onEndQuiz={handleEndQuiz}
           onResetScores={handleResetScores}

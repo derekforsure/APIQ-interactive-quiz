@@ -20,16 +20,13 @@ export default function Scoreboard({ sessionId, scoringMode }: ScoreboardProps) 
   const fetchScores = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null); // Clear previous errors
-      console.log(`Fetching scores for session ${sessionId} with mode ${scoringMode}`);
+      setError(null);
       const response = await fetch(`/api/sessions/${sessionId}/scores?mode=${scoringMode}`);
-      console.log('API Response:', response);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(`Error: ${response.status} - ${errorData.message || response.statusText}`);
       }
       const data = await response.json();
-      console.log('Fetched scores data:', data);
       setScores(data.data || []);
     } catch (err) {
       setError((err as Error).message);
@@ -40,11 +37,8 @@ export default function Scoreboard({ sessionId, scoringMode }: ScoreboardProps) 
   }, [sessionId, scoringMode]);
 
   useEffect(() => {
-    console.log('Scoreboard component mounted/updated. Session ID:', sessionId, 'Scoring Mode:', scoringMode);
     fetchScores();
   }, [sessionId, scoringMode, fetchScores]);
-
-  console.log('Scoreboard current state - loading:', loading, 'error:', error, 'scores count:', scores.length);
 
   const getRankBadge = (rank: number) => {
     if (rank === 1) return 'bg-amber-100 text-amber-800';

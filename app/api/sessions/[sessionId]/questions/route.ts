@@ -1,8 +1,9 @@
 import { getConnection } from '@/utils/db';
 import { successResponse, errorResponse } from '@/lib/apiResponse';
 import { z } from 'zod';
+import { RowDataPacket } from 'mysql2';
 
-interface Question {
+interface Question extends RowDataPacket {
   id: number;
   text: string;
   answer: string;
@@ -21,19 +22,19 @@ interface DBError extends Error {
   code?: string;
 }
 
-export async function GET(request: Request, { params }: { params: { sessionId: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ sessionId: string }> }) {
+  const { sessionId } = await params;
   let connection;
   try {
-    const { sessionId } = await params;
     connection = await getConnection();
-    const [rows] = await connection.execute(
+    const [rows] = await connection.execute<Question[]>(
       `SELECT qb.*
        FROM session_questions sq
        JOIN questions_bank qb ON sq.question_id = qb.id
        WHERE sq.session_id = ?`,
       [sessionId]
     );
-    return successResponse(rows as Question[], 'Session questions fetched successfully');
+    return successResponse(rows, 'Session questions fetched successfully');
   } catch (error) {
     console.error('Error fetching session questions:', error);
     return errorResponse('Internal server error', 500);
@@ -48,10 +49,10 @@ const addQuestionToSessionSchema = z.object({
   question_id: z.number().int().positive(),
 });
 
-export async function POST(request: Request, { params }: { params: { sessionId: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ sessionId: string }> }) {
+  const { sessionId } = await params;
   let connection;
   try {
-    const { sessionId } = await params;
     const body = await request.json();
     const validationResult = addQuestionToSessionSchema.safeParse(body);
 
