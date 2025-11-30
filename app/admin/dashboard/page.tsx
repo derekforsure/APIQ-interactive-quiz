@@ -27,7 +27,7 @@ export default function AdminDashboard() {
           fetch('/api/stats/active-sessions'),
           fetch('/api/stats/total-students'),
           fetch('/api/stats/total-groups'),
-          fetch('/api/sessions?limit=5'),
+          fetch('/api/sessions?limit=3'),
           fetch('/api/questions/categories'),
         ]);
 
@@ -239,8 +239,8 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Category Breakdown */}
-      <div className="grid grid-cols-1 gap-6">
+      {/* Category Breakdown & Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {stats?.categoryBreakdown && stats.categoryBreakdown.length > 0 && (
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
             <div className="p-5 border-b border-gray-200">
@@ -270,6 +270,76 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* Performance Overview */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+          <div className="p-5 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Performance Overview</h2>
+          </div>
+          <div className="p-5">
+            <div className="space-y-6">
+              {/* Session Activity */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-gray-700">Session Activity</h3>
+                  <span className="text-xs text-gray-500">Last 3 sessions</span>
+                </div>
+                {stats?.recentSessions && stats.recentSessions.length > 0 ? (
+                  <div className="space-y-3">
+                    {stats.recentSessions.slice(0, 3).map((session) => (
+                      <div key={session.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                            session.is_active ? 'bg-green-100' : 'bg-gray-200'
+                          }`}>
+                            <svg className={`w-4 h-4 ${session.is_active ? 'text-green-600' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{session.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(session.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          session.is_active 
+                            ? 'bg-green-50 text-green-700 border border-green-200' 
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {session.is_active ? 'Active' : 'Ended'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-100">
+                    <svg className="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <p className="mt-2 text-xs text-gray-500">No sessions yet</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Question Bank Stats */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Question Bank</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <p className="text-xs text-gray-600 mb-1">Total Questions</p>
+                    <p className="text-2xl font-bold text-blue-600">{stats?.totalQuestions || 0}</p>
+                  </div>
+                  <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
+                    <p className="text-xs text-gray-600 mb-1">Categories</p>
+                    <p className="text-2xl font-bold text-purple-600">{stats?.categoryBreakdown?.length || 0}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { TableSkeleton } from '@/components/ui/skeletons';
+import { Pagination } from '@/components/Pagination';
 
 interface Student {
   id: number;
@@ -25,6 +26,8 @@ export default function StudentManagementPage() {
   const [showModal, setShowModal] = useState(false);
   const [newStudent, setNewStudent] = useState({ student_id: '', name: '', department_id: '' });
   const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | 'all'>('active');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 0, limit: 20 });
   const searchParams = useSearchParams();
   const departmentId = searchParams.get('departmentId');
 
@@ -32,6 +35,9 @@ export default function StudentManagementPage() {
     try {
       setLoading(true);
       const url = new URL('/api/students', window.location.origin);
+      url.searchParams.append('page', currentPage.toString());
+      url.searchParams.append('limit', '20');
+      
       if (filterStatus === 'active') {
         url.searchParams.append('is_active', '1');
       } else if (filterStatus === 'inactive') {
@@ -48,7 +54,8 @@ export default function StudentManagementPage() {
       const responseData = await res.json();
 
       if (res.ok) {
-        setStudents(responseData.data || []);
+        setStudents(responseData.data.data || []);
+        setPagination(responseData.data.pagination || { total: 0, totalPages: 0, limit: 20 });
       } else {
         console.error('Error fetching students:', responseData);
         setStudents([]);
@@ -61,7 +68,7 @@ export default function StudentManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, departmentId]);
+  }, [filterStatus, departmentId, currentPage]);
 
   async function fetchDepartments() {
     const res = await fetch('/api/departments');
@@ -278,6 +285,16 @@ export default function StudentManagementPage() {
             </table>
           )}
         </div>
+        
+        {!loading && students.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={pagination.totalPages}
+            onPageChange={(page) => setCurrentPage(page)}
+            totalItems={pagination.total}
+            itemsPerPage={pagination.limit}
+          />
+        )}
       </div>
 
       {showModal && (

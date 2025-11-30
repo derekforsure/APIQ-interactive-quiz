@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { TableSkeleton } from '@/components/ui/skeletons';
+import { Pagination } from '@/components/Pagination';
 
 interface Question {
   id: number;
@@ -46,6 +47,8 @@ export default function QuestionsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 0, limit: 25 });
   const [newQuestion, setNewQuestion] = useState({
     text: '',
     answer: '',
@@ -59,17 +62,24 @@ export default function QuestionsPage() {
   });
 
   const fetchQuestions = useCallback(async () => {
-    const url = selectedCategory === 'all' 
-      ? '/api/questions' 
-      : `/api/questions?category=${encodeURIComponent(selectedCategory)}`;
-    
     try {
       setLoading(true);
-      const res = await fetch(url);
+      const url = new URL('/api/questions', window.location.origin);
+      url.searchParams.append('page', currentPage.toString());
+      url.searchParams.append('limit', '25');
+      
+      if (selectedCategory !== 'all') {
+        url.searchParams.append('category', selectedCategory);
+      }
+      
+      const res = await fetch(url.toString());
       const responseData = await res.json();
 
       if (res.ok) {
-        setQuestions(responseData.data || []);
+        // Handle new paginated format: { data: { data: [...], pagination: {...} } }
+        const questionsData = responseData.data?.data || responseData.data || [];
+        setQuestions(Array.isArray(questionsData) ? questionsData : []);
+        setPagination(responseData.data?.pagination || { total: 0, totalPages: 0, limit: 25 });
       } else {
         console.error('Error fetching questions:', responseData);
         setQuestions([]);
@@ -82,7 +92,7 @@ export default function QuestionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, currentPage]);
 
   useEffect(() => {
     fetchQuestions();
@@ -314,6 +324,16 @@ export default function QuestionsPage() {
             </table>
           )}
         </div>
+        
+        {!loading && questions.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={pagination.totalPages}
+            onPageChange={(page) => setCurrentPage(page)}
+            totalItems={pagination.total}
+            itemsPerPage={pagination.limit}
+          />
+        )}
       </div>
 
       {showModal && (

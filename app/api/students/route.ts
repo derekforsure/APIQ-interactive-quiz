@@ -11,6 +11,9 @@ export async function GET(request: NextRequest) {
     const isActiveParam = searchParams.get('is_active'); // '1', '0', or 'all'
     const departmentId = searchParams.get('departmentId');
     const groupId = searchParams.get('groupId'); // Support both for now
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const offset = (page - 1) * limit;
     
     const session = await getSession();
     if (!session || !session.userId) {
@@ -18,9 +21,10 @@ export async function GET(request: NextRequest) {
     }
 
     connection = await getConnection();
-    let query = 'SELECT s.id, s.student_id, s.name, d.name as department, s.image_url, s.is_active FROM students s JOIN departments d ON s.department_id = d.id';
-    const params: (string | number)[] = [];
+    
+    // Build WHERE clauses
     const whereClauses: string[] = [];
+    const params: (string | number)[] = [];
 
     // Organizers only see their own students
     if (session.role === 'organizer') {
@@ -39,14 +43,31 @@ export async function GET(request: NextRequest) {
       params.push(departmentId || groupId || '');
     }
 
-    if (whereClauses.length > 0) {
-      query += ` WHERE ${whereClauses.join(' AND ')}`;
-    }
+    const whereClause = whereClauses.length > 0 ? ` WHERE ${whereClauses.join(' AND ')}` : '';
     
-    query += ' ORDER BY s.id DESC';
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as total FROM students s${whereClause}`;
+    const [countResult] = await connection.execute(countQuery, params);
+    const total = (countResult as unknown as { total: number }[])[0].total;
     
-    const [rows] = await connection.execute(query, params);
-    return successResponse(rows, 'Students fetched successfully');
+    // Get paginated data
+    const dataQuery = `SELECT s.id, s.student_id, s.name, d.name as department, s.image_url, s.is_active 
+                     FROM students s 
+                     JOIN departments d ON s.department_id = d.id${whereClause}
+                     ORDER BY s.id DESC 
+                     LIMIT ${limit} OFFSET ${offset}`;
+    
+    const [rows] = await connection.execute(dataQuery, params);
+    
+    return successResponse({
+      data: rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    }, 'Students fetched successfully');
   } catch (error) {
     console.error('Error fetching students:', error);
     return errorResponse('Internal server error', 500);

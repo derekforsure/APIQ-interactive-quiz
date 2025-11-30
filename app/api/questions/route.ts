@@ -26,26 +26,50 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const offset = (page - 1) * limit;
     
     connection = await getConnection();
-    let query = 'SELECT * FROM questions_bank WHERE is_active = 1';
+    
+    // Build WHERE clauses
+    const whereClauses: string[] = ['is_active = 1'];
     const params: (string | number)[] = [];
     
     // Organizers only see their own questions
     if (session.role === 'organizer') {
-      query += ' AND created_by = ?';
+      whereClauses.push('created_by = ?');
       params.push(session.userId);
     }
     
     if (category && category !== 'all') {
-      query += ' AND category = ?';
+      whereClauses.push('category = ?');
       params.push(category);
     }
     
-    query += ' ORDER BY created_at DESC';
+    const whereClause = ` WHERE ${whereClauses.join(' AND ')}`;
     
-    const [rows] = await connection.execute(query, params);
-    return successResponse(rows, 'Questions fetched successfully');
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as total FROM questions_bank${whereClause}`;
+    const [countResult] = await connection.execute(countQuery, params);
+    const total = (countResult as unknown as { total: number }[])[0].total;
+    
+    // Get paginated data
+    const dataQuery = `SELECT * FROM questions_bank${whereClause} 
+                       ORDER BY created_at DESC 
+                       LIMIT ${limit} OFFSET ${offset}`;
+    
+    const [rows] = await connection.execute(dataQuery, params);
+    
+    return successResponse({
+      data: rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    }, 'Questions fetched successfully');
   } catch (error) {
     console.error('Error fetching questions:', error);
     return errorResponse('Internal server error', 500);

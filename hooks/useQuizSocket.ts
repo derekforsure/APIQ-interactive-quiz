@@ -24,6 +24,9 @@ export function useQuizSocket({ sessionId, onScoringModeChange }: UseQuizSocketP
   const [countdown, setCountdown] = useState<number | null>(null);
   const [finalLeaderboardScores, setFinalLeaderboardScores] = useState<Record<string, number> | null>(null);
   const ws = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const shouldReconnectRef = useRef(true);
 
   useEffect(() => {
     if (countdown === null) return;
@@ -40,17 +43,32 @@ export function useQuizSocket({ sessionId, onScoringModeChange }: UseQuizSocketP
     return () => clearTimeout(timer);
   }, [countdown]);
 
-  useEffect(() => {
+  const connect = useCallback(() => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      return;
+    }
+
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://localhost:3001`;
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
+      console.log('WebSocket connected');
       setIsConnected(true);
+      reconnectAttemptsRef.current = 0;
       ws.current?.send(JSON.stringify({ type: 'REGISTER', payload: { role: 'admin', sessionId } }));
     };
 
     ws.current.onmessage = async (event) => {
       const data = JSON.parse(event.data);
+      
+      // Handle server shutdown message
+      if (data.type === 'SERVER_SHUTDOWN') {
+        console.log('Server is shutting down');
+        shouldReconnectRef.current = false;
+        setIsConnected(false);
+        return;
+      }
+
       if (['QUIZ_STATE', 'QUIZ_STARTED', 'BUZZER_ACTIVATED', 'SCORES_UPDATED', 'NEW_QUESTION', 'TIMER_UPDATE', 'BUZZER_OPEN', 'QUIZ_ENDED', 'COUNTDOWN', 'START_QUIZ', 'COUNTDOWN_START'].includes(data.type)) {
         if (data.type === 'COUNTDOWN') {
           setCountdown(data.payload.countdown);
@@ -88,23 +106,50 @@ export function useQuizSocket({ sessionId, onScoringModeChange }: UseQuizSocketP
     };
 
     ws.current.onclose = (event) => {
-      console.log('WebSocket disconnected:', event);
+      console.log('WebSocket disconnected:', event.code, event.reason);
       setIsConnected(false);
+
+      // Attempt reconnection with exponential backoff
+      if (shouldReconnectRef.current) {
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+        console.log(`Attempting to reconnect in ${delay}ms...`);
+        
+        reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectAttemptsRef.current++;
+          connect();
+        }, delay);
+      }
     };
 
     ws.current.onerror = (error) => {
-      console.error('WebSocket error details:', error);
-    };
-
-    return () => {
-      if (ws.current) {
-        ws.current.close();
+      // Only log if we're not already handling reconnection
+      if (ws.current?.readyState !== WebSocket.CLOSED && ws.current?.readyState !== WebSocket.CLOSING) {
+        console.error('WebSocket error occurred. State:', ws.current?.readyState);
       }
     };
   }, [sessionId, onScoringModeChange]);
 
+  useEffect(() => {
+    shouldReconnectRef.current = true;
+    connect();
+
+    return () => {
+      shouldReconnectRef.current = false;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (ws.current) {
+        ws.current.close();
+      }
+    };
+  }, [connect]);
+
   const sendCommand = useCallback((type: string, payload: Record<string, unknown> = {}) => {
-    ws.current?.send(JSON.stringify({ type, payload: { ...payload, sessionId } }));
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ type, payload: { ...payload, sessionId } }));
+    } else {
+      console.warn('WebSocket is not connected. Command not sent:', type);
+    }
   }, [sessionId]);
 
   return {
@@ -113,6 +158,6 @@ export function useQuizSocket({ sessionId, onScoringModeChange }: UseQuizSocketP
     countdown,
     finalLeaderboardScores,
     sendCommand,
-    setFinalLeaderboardScores // Exported in case we need to manually clear it, though logic is mostly internal
+    setFinalLeaderboardScores
   };
 }

@@ -53,11 +53,7 @@ export default function SessionParticipantsPage() {
   const [sessionDetails, setSessionDetails] = useState<SessionDetails | null>(null);
   // Removed local participants and sessionQuestions state
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   const [selectedQuestionToAdd, setSelectedQuestionToAdd] = useState<string>('');
-  const [sessionLoading, setSessionLoading] = useState(true); 
-  const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<'quiz-control' | 'questions' | 'participants' | 'scoreboard' | 'score-over-time'>('quiz-control');
   const [currentScoringMode, setCurrentScoringMode] = useState<'individual' | 'department'>('individual');
 
@@ -111,7 +107,9 @@ export default function SessionParticipantsPage() {
         throw new Error(`Error: ${response.status}`);
       }
       const data = await response.json();
-      setAllQuestions(data.data || []);
+      // Handle new paginated format: { data: { data: [...], pagination: {...} } }
+      const questionsData = data.data?.data || data.data || [];
+      setAllQuestions(Array.isArray(questionsData) ? questionsData : []);
     } catch (err) {
       console.error('Failed to fetch all questions:', err);
       setAllQuestions([]);
@@ -263,21 +261,26 @@ export default function SessionParticipantsPage() {
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-3xl font-bold text-gray-900">{sessionDetails?.name || "Session Details"}</h1>
+          </div>
+          <p className="text-gray-600 mb-2 mt-2">
+            Session ID: <span className="font-mono bg-gray-50 px-2 py-1 rounded border border-gray-200 text-sm">{sessionId}</span>
+          </p>
+          <div className="flex items-center gap-2 pt-2">
             {sessionDetails && (
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
                 sessionDetails.is_active 
-                  ? 'bg-emerald-100 text-emerald-700' 
-                  : 'bg-gray-100 text-gray-600'
+                  ? 'bg-green-50 text-green-700 border-green-200' 
+                  : 'bg-gray-50 text-gray-600 border-gray-200'
               }`}>
-                {sessionDetails.is_active ? '✓ Active' : 'Inactive'}
+                {sessionDetails.is_active ? 'Active' : 'Inactive'}
               </span>
             )}
             {sessionDetails && (
               <button
                 onClick={handleToggleActivation}
-                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
                   sessionDetails.is_active
-                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    ? 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
                     : 'bg-indigo-600 text-white hover:bg-indigo-700'
                 }`}
               >
@@ -285,9 +288,6 @@ export default function SessionParticipantsPage() {
               </button>
             )}
           </div>
-          <p className="text-gray-600 mb-2 mt-2">
-            Session ID: <span className="font-mono bg-gray-50 px-2 py-1 rounded border border-gray-200 text-sm">{sessionId}</span>
-          </p>
         </div>
         <div className="flex-shrink-0">
           {sessionId && <SessionQrCode sessionId={sessionId} />}

@@ -148,8 +148,27 @@ function startTimer(sessionId) {
   }, 100);
 }
 
+// Heartbeat mechanism to detect and clean up stale connections
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      console.log('Terminating stale connection');
+      return ws.terminate();
+    }
+
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 30000); // Check every 30 seconds
+
 wss.on('connection', ws => {
   console.log('Client connected');
+
+  // Initialize heartbeat tracking
+  ws.isAlive = true;
+  ws.on('pong', () => {
+    ws.isAlive = true;
+  });
 
   ws.on('message', async message => {
     try {
@@ -461,3 +480,50 @@ wss.on('connection', ws => {
     }
   });
 });
+
+// Graceful shutdown handling
+async function gracefulShutdown(signal) {
+  console.log(`\n${signal} received. Starting graceful shutdown...`);
+
+  // Stop accepting new connections
+  wss.close(() => {
+    console.log('WebSocket server closed');
+  });
+
+  // Clear heartbeat interval
+  clearInterval(heartbeatInterval);
+
+  // Notify all connected clients
+  wss.clients.forEach((ws) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'SERVER_SHUTDOWN',
+        payload: { message: 'Server is shutting down' }
+      }));
+      ws.close(1001, 'Server shutting down');
+    }
+  });
+
+  // Clear all session timers
+  for (const sessionId in sessionTimers) {
+    clearInterval(sessionTimers[sessionId]);
+  }
+
+  // Close database connection
+  if (db) {
+    await db.end();
+    console.log('Database connection closed');
+  }
+
+  // Close Redis connection
+  redis.disconnect();
+  console.log('Redis connection closed');
+
+  console.log('Graceful shutdown complete');
+  process.exit(0);
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+console.log('WebSocket server running on port 3001');

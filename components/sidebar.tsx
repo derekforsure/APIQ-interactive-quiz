@@ -6,7 +6,9 @@ import {
   ChevronRight,
   Building2,
   BookUser,
-  HelpCircle
+  HelpCircle,
+  UserCog,
+  ScrollText
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image";
@@ -62,6 +64,20 @@ const platformItems = [
   },
 ]
 
+// Admin-only items
+const adminOnlyItems = [
+  {
+    title: "User Management",
+    url: "/admin/users",
+    icon: UserCog,
+  },
+  {
+    title: "Audit Log",
+    url: "/admin/audit",
+    icon: ScrollText,
+  },
+]
+
 interface AppSidebarProps {
   adminName: string;
   role?: string;
@@ -110,6 +126,30 @@ export function AppSidebar({ adminName, role = 'admin' }: AppSidebarProps) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Admin-only section */}
+        {role === 'admin' && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-gray-600 text-sm font-medium mb-2">
+              Administration
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminOnlyItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild className="hover:bg-gray-100 text-gray-700 hover:text-gray-900">
+                      <Link href={item.url} className="flex items-center gap-2 px-2 py-2">
+                        <item.icon className="w-4 h-4" />
+                        <span>{item.title}</span>
+                        <ChevronRight className="w-4 h-4 ml-auto" />
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
       </SidebarContent>
 
