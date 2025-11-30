@@ -1,6 +1,7 @@
 import { getConnection } from '@/utils/db';
 import { z } from 'zod';
 import { successResponse, errorResponse } from '@/lib/apiResponse';
+import { getSession } from '@/lib/session';
 
 // Define a schema for the expected question input
 const questionSchema = z.object({
@@ -18,12 +19,23 @@ const questionSchema = z.object({
 export async function GET(request: Request) {
   let connection;
   try {
+    const session = await getSession();
+    if (!session || !session.userId) {
+      return errorResponse('Unauthorized', 401);
+    }
+
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     
     connection = await getConnection();
     let query = 'SELECT * FROM questions_bank WHERE is_active = 1';
-    const params: string[] = [];
+    const params: (string | number)[] = [];
+    
+    // Organizers only see their own questions
+    if (session.role === 'organizer') {
+      query += ' AND created_by = ?';
+      params.push(session.userId);
+    }
     
     if (category && category !== 'all') {
       query += ' AND category = ?';
@@ -47,6 +59,11 @@ export async function GET(request: Request) {
 export async function POST(req: Request) {
   let connection;
   try {
+    const session = await getSession();
+    if (!session || !session.userId) {
+      return errorResponse('Unauthorized', 401);
+    }
+
     const body = await req.json();
     
     // Validate the request body against the schema
@@ -65,8 +82,8 @@ export async function POST(req: Request) {
 
     connection = await getConnection();
     const [result] = await connection.execute(
-      'INSERT INTO questions_bank (text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, topic, question_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, topic, question_type]
+      'INSERT INTO questions_bank (text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, topic, question_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [text, answer, incorrect_option_1, incorrect_option_2, incorrect_option_3, category, difficulty, topic, question_type, session.userId]
     );
     
     return successResponse({ message: 'Question added successfully', result }, 'Question added successfully', 201);

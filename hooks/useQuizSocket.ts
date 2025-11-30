@@ -103,7 +103,7 @@ export function useQuizSocket({ sessionId, onScoringModeChange }: UseQuizSocketP
     };
   }, [sessionId, onScoringModeChange]);
 
-  const sendCommand = useCallback((type: string, payload = {}) => {
+  const sendCommand = useCallback((type: string, payload: Record<string, unknown> = {}) => {
     ws.current?.send(JSON.stringify({ type, payload: { ...payload, sessionId } }));
   }, [sessionId]);
 

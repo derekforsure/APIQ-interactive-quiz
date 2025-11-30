@@ -6,14 +6,10 @@ import QuizControl from '@/components/QuizControl';
 import SessionQrCode from '@/components/SessionQrCode';
 import SessionScoreOverview from '@/components/SessionScoreOverview';
 
+import { useQuizSocket } from '@/hooks/useQuizSocket';
 import { toast } from 'sonner';
 import { useLiveCounts } from '@/hooks/useLiveCounts';
-import { TableSkeleton, StatsSkeleton } from '@/components/ui/skeletons';
-
-interface Participant {
-  student_id: string;
-  name: string;
-}
+import { TableSkeleton } from '@/components/ui/skeletons';
 
 interface Question {
   id: number;
@@ -60,7 +56,6 @@ export default function SessionParticipantsPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   const [selectedQuestionToAdd, setSelectedQuestionToAdd] = useState<string>('');
-  // loading state is now handled by useLiveCounts for participants/questions
   const [sessionLoading, setSessionLoading] = useState(true); 
   const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<'quiz-control' | 'questions' | 'participants' | 'scoreboard' | 'score-over-time'>('quiz-control');
@@ -74,13 +69,26 @@ export default function SessionParticipantsPage() {
     refresh: refreshLiveCounts 
   } = useLiveCounts(sessionId, selectedTab);
 
+  const handleScoringModeChange = useCallback((mode: 'individual' | 'department') => {
+    setCurrentScoringMode(mode);
+  }, []);
+
+  const {
+    quizState,
+    isConnected,
+    countdown,
+    finalLeaderboardScores,
+    sendCommand,
+  } = useQuizSocket({ sessionId, onScoringModeChange: handleScoringModeChange });
+
   const fetchSessionDetails = useCallback(async () => {
     try {
       const response = await fetch('/api/sessions');
       if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
       }
-      const data: SessionDetails[] = await response.json();
+      const responseData = await response.json();
+      const data: SessionDetails[] = responseData.data;
       const currentSession = data.find(session => session.id === sessionId);
       if (currentSession) {
         setSessionDetails(currentSession);
@@ -92,9 +100,6 @@ export default function SessionParticipantsPage() {
       console.error('Failed to fetch session details:', err);
     }
   }, [sessionId]);
-
-  // Removed local fetchParticipants and fetchSessionQuestions
-
 
   const fetchAllQuestions = useCallback(async (category: string = 'all') => {
     try {
@@ -133,8 +138,6 @@ export default function SessionParticipantsPage() {
   useEffect(() => {
     if (!sessionId) return;
     
-    // Fetch session details and categories
-    // Participants and questions are handled by useLiveCounts
     const loadInitialData = async () => {
       setSessionLoading(true);
       await Promise.all([
@@ -170,7 +173,6 @@ export default function SessionParticipantsPage() {
         throw new Error(errorData.message || 'Failed to remove participant');
       }
 
-      // Refresh participants list using the hook's refresh function
       await refreshLiveCounts();
       toast.success('Participant removed successfully');
     } catch (err) {
@@ -194,7 +196,6 @@ export default function SessionParticipantsPage() {
         throw new Error(errorData.message || 'Failed to remove question from session');
       }
 
-      // Refresh questions list using the hook's refresh function
       await refreshLiveCounts();
       toast.success('Question removed from session');
     } catch (err) {
@@ -224,7 +225,6 @@ export default function SessionParticipantsPage() {
       }
 
       setSelectedQuestionToAdd('');
-      // Refresh questions list using the hook's refresh function
       await refreshLiveCounts();
       toast.success('Question added to session');
     } catch (err) {
@@ -232,10 +232,6 @@ export default function SessionParticipantsPage() {
       console.error('Error adding question to session:', err);
     }
   };
-
-  const handleScoringModeChange = useCallback((mode: 'individual' | 'department') => {
-    setCurrentScoringMode(mode);
-  }, []);
 
   const handleToggleActivation = async () => {
     if (!sessionDetails) return;
@@ -255,17 +251,12 @@ export default function SessionParticipantsPage() {
         throw new Error(errorData.message || 'Failed to update session');
       }
       
-      // Refresh session details
       await fetchSessionDetails();
     } catch (err) {
       alert(`Failed to toggle session: ${(err as Error).message}`);
       console.error('Error toggling session:', err);
     }
   };
-
-  // Removed local polling useEffect as it's handled by useLiveCounts
-
-
   return (
     <div className="relative space-y-6">
       <div className="flex items-start justify-between">
@@ -491,7 +482,15 @@ export default function SessionParticipantsPage() {
 
         {selectedTab === 'quiz-control' && (
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-            <QuizControl sessionId={sessionId} onScoringModeChange={handleScoringModeChange} />
+            <QuizControl
+              sessionId={sessionId}
+              onScoringModeChange={handleScoringModeChange}
+              quizState={quizState}
+              isConnected={isConnected}
+              countdown={countdown}
+              finalLeaderboardScores={finalLeaderboardScores}
+              sendCommand={sendCommand}
+            />
           </div>
         )}
 

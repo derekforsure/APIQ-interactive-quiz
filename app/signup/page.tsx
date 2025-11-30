@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 import Image from 'next/image';
 
 export default function SignupPage() {
@@ -138,7 +139,7 @@ export default function SignupPage() {
           {/* Footer */}
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
             <p className="text-xs text-center text-gray-500">
-              Already have an account? <a href="/" className="text-indigo-600 hover:text-indigo-700 font-medium">Sign in</a>
+              Already have an account? <Link href="/" className="text-indigo-600 hover:text-indigo-700 font-medium">Sign in</Link>
             </p>
           </div>
         </div>

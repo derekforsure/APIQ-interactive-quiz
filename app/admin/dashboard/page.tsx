@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { StatsSkeleton } from '@/components/ui/skeletons';
-import StudentsByDepartmentChart from '@/components/StudentsByDepartmentChart';
+
 
 interface DashboardStats {
   totalQuestions: number;
   activeSessions: number;
   totalStudents: number;
-  totalDepartments: number;
+  totalGroups: number;
   recentSessions: Array<{ id: string; name: string; created_at: string; is_active: number }>;
   categoryBreakdown: Array<{ category: string; count: number }>;
 }
@@ -17,7 +17,6 @@ interface DashboardStats {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [username, setUsername] = useState('Admin');
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -27,7 +26,7 @@ export default function AdminDashboard() {
           fetch('/api/stats/total-questions'),
           fetch('/api/stats/active-sessions'),
           fetch('/api/stats/total-students'),
-          fetch('/api/stats/total-departments'),
+          fetch('/api/stats/total-groups'),
           fetch('/api/sessions?limit=5'),
           fetch('/api/questions/categories'),
         ]);
@@ -45,7 +44,7 @@ export default function AdminDashboard() {
           totalQuestions: questions.total_questions || 0,
           activeSessions: sessions.active_sessions || 0,
           totalStudents: students.data?.total_students || 0,
-          totalDepartments: departments.total_departments || 0,
+          totalGroups: departments.total_departments || 0,
           recentSessions: recentSessions.data || [],
           categoryBreakdown: categories.data || [],
         });
@@ -120,8 +119,8 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Departments</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.totalDepartments || 0}</p>
+              <p className="text-sm font-medium text-gray-600">Groups</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.totalGroups || 0}</p>
             </div>
             <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -240,8 +239,8 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Category Breakdown & Students by Department */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Category Breakdown */}
+      <div className="grid grid-cols-1 gap-6">
         {stats?.categoryBreakdown && stats.categoryBreakdown.length > 0 && (
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
             <div className="p-5 border-b border-gray-200">
@@ -271,16 +270,6 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
-
-        {/* Students by Department Chart */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="p-5 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Students by Department</h2>
-          </div>
-          <div className="p-5">
-            <StudentsByDepartmentChart />
-          </div>
-        </div>
       </div>
     </div>
   );

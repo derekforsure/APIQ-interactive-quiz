@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
   req: NextRequest,
-  context: any
+  context: { params: { sessionId: string } }
 ) {
   const { sessionId } = context.params;
   const { student_id } = await req.json();

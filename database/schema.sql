@@ -20,7 +20,9 @@ CREATE TABLE IF NOT EXISTS sessions (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(255) UNIQUE NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    is_active TINYINT(1) DEFAULT 1
+    is_active TINYINT(1) DEFAULT 1,
+    created_by INT,
+    FOREIGN KEY (created_by) REFERENCES admins(id)
 );
 
 -- 4. session_participants
@@ -48,7 +50,9 @@ CREATE TABLE IF NOT EXISTS questions_bank (
     topic VARCHAR(100) DEFAULT 'General',
     question_type VARCHAR(50) DEFAULT 'text',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    is_active TINYINT(1) DEFAULT 1
+    is_active TINYINT(1) DEFAULT 1,
+    created_by INT,
+    FOREIGN KEY (created_by) REFERENCES admins(id)
 );
 
 -- 6. session_questions
@@ -104,6 +108,7 @@ CREATE TABLE IF NOT EXISTS admins (
     id INT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) DEFAULT 'organizer',
     email VARCHAR(255) UNIQUE,
     is_verified TINYINT(1) DEFAULT 0,
     verification_token VARCHAR(255),

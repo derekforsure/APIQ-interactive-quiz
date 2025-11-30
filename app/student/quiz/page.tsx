@@ -2,14 +2,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Trophy, Clock, AlertCircle } from 'lucide-react';
-import { QUIZ_TIMER_DURATION } from '@/lib/constants';
 
 interface SessionData {
   studentId?: string;
@@ -301,7 +298,7 @@ export default function StudentQuizPage() {
             {Object.entries(quizState.scores)
               .sort(([, a], [, b]) => b - a)
               .slice(0, 3)
-              .map(([name, score], index) => (
+              .map(([name, score]) => (
                 <div 
                   key={name} 
                   className={`text-center p-2 rounded-lg border ${

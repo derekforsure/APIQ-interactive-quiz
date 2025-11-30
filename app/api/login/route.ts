@@ -32,10 +32,10 @@ export async function POST(req: NextRequest) {
 
     connection = await getConnection();
     const [rows] = (await connection.execute(
-      `SELECT id, username, password, subscription_status, trial_started_at 
+      `SELECT id, username, password, subscription_status, trial_started_at, role 
        FROM admins WHERE username = ?`,
       [username]
-    )) as [{ id: number; username: string; password: string; subscription_status: string; trial_started_at: Date | null }[], unknown];
+    )) as [{ id: number; username: string; password: string; subscription_status: string; trial_started_at: Date | null; role: string }[], unknown];
 
     if (rows.length === 0) {
       return errorResponse("Invalid username or password", 401);
@@ -48,8 +48,8 @@ export async function POST(req: NextRequest) {
       return errorResponse("Invalid username or password", 401);
     }
 
-    // Check if trial has expired
-    if (user.subscription_status !== 'active' && user.trial_started_at) {
+    // Check if trial has expired (only for organizers with trials)
+    if (user.role === 'organizer' && user.subscription_status !== 'active' && user.trial_started_at) {
       const trialStart = new Date(user.trial_started_at);
       const now = new Date();
       const daysSinceTrialStart = Math.floor((now.getTime() - trialStart.getTime()) / (1000 * 60 * 60 * 24));
@@ -60,7 +60,13 @@ export async function POST(req: NextRequest) {
     }
 
     const sessionId = randomBytes(16).toString("hex");
-    await setSession({ sessionId, isAdmin: true, username: user.username });
+    await setSession({ 
+      sessionId, 
+      isAdmin: true, 
+      username: user.username,
+      role: user.role,
+      userId: user.id
+    });
 
     return successResponse({ message: "Login successful" }, "Login successful");
   } catch (error) {

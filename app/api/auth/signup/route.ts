@@ -2,18 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/utils/db';
 import { RowDataPacket } from 'mysql2';
 import crypto from 'crypto';
-
-// Simple password hashing (in production use bcrypt/argon2)
-// For this demo we'll keep it simple or assume the existing auth uses plain/simple hash
-// NOTE: The existing schema implies passwords are stored. We should ideally hash them.
-// I will use a placeholder hash function for now to match likely existing patterns or just store as is if that's the legacy state, 
-// but for a new feature I'll assume we want at least some basic security.
-// However, since I don't see bcrypt in package.json, I'll stick to a simple approach or just store it (NOT RECOMMENDED for prod, but matches context if no auth lib exists).
-// actually, let's check if we can use crypto for a basic hash.
-
-function hashPassword(password: string) {
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
+import bcrypt from 'bcrypt';
 
 export async function POST(req: NextRequest) {
   let connection;
@@ -37,7 +26,7 @@ export async function POST(req: NextRequest) {
     }
 
     const verificationToken = crypto.randomBytes(32).toString('hex');
-    const hashedPassword = hashPassword(password);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     await connection.execute(
       `INSERT INTO admins (username, email, password, verification_token, is_verified) 

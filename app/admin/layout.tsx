@@ -8,7 +8,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <SidebarProvider>
-      <AppSidebar adminName={adminName} />
+      <AppSidebar adminName={adminName} role={session?.role} />
       <main className="flex-1 w-full">
         <div className="flex flex-col">
           <div className="border-b p-4">

@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     if (event.type === 'checkout.session.completed') {
       // Retrieve the subscription details
-      const sub = await stripe.subscriptions.retrieve(session.subscription as string);
+      await stripe.subscriptions.retrieve(session.subscription as string);
       const customerId = session.customer as string;
       
       // Update admin based on customer_id or metadata

@@ -2,6 +2,7 @@
 import { getConnection } from '@/utils/db';
 import { successResponse, errorResponse } from '@/lib/apiResponse';
 import { NextRequest } from 'next/server';
+import { getSession } from '@/lib/session';
 
 export async function GET(request: NextRequest) {
   let connection;
@@ -9,11 +10,23 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const isActiveParam = searchParams.get('is_active'); // '1', '0', or 'all'
     const departmentId = searchParams.get('departmentId');
+    const groupId = searchParams.get('groupId'); // Support both for now
     
+    const session = await getSession();
+    if (!session || !session.userId) {
+      return errorResponse('Unauthorized', 401);
+    }
+
     connection = await getConnection();
     let query = 'SELECT s.id, s.student_id, s.name, d.name as department, s.image_url, s.is_active FROM students s JOIN departments d ON s.department_id = d.id';
     const params: (string | number)[] = [];
     const whereClauses: string[] = [];
+
+    // Organizers only see their own students
+    if (session.role === 'organizer') {
+      whereClauses.push('s.created_by = ?');
+      params.push(session.userId);
+    }
 
     if (isActiveParam === '1') {
       whereClauses.push('s.is_active = 1');
@@ -21,9 +34,9 @@ export async function GET(request: NextRequest) {
       whereClauses.push('s.is_active = 0');
     }
 
-    if (departmentId) {
+    if (departmentId || groupId) {
       whereClauses.push('s.department_id = ?');
-      params.push(departmentId);
+      params.push(departmentId || groupId || '');
     }
 
     if (whereClauses.length > 0) {

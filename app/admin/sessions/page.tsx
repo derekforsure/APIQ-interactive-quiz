@@ -35,7 +35,9 @@ export default function SessionsPage() {
       if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
       }
-      const data: Session[] = await response.json();
+      const result = await response.json();
+      // Handle both old format (array) and new format ({ data: array })
+      const data: Session[] = Array.isArray(result) ? result : result.data || [];
       setSessions(data);
     } catch (err) {
       setError((err as Error).message);

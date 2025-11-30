@@ -6,7 +6,9 @@ type SessionData = {
   isAdmin?: boolean;
   studentId?: string;
   quizSessionId?: string;
-  username?: string; // Added username property
+  username?: string;
+  role?: string; // 'admin' or 'organizer'
+  userId?: number; // Admin ID
 };
 
 const secret = process.env.SECRET_COOKIE_PASSWORD;

@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuizSocket } from '@/hooks/useQuizSocket';
 import { useQuizAudio } from '@/hooks/useQuizAudio';
 import { QuizHeader } from './quiz/QuizHeader';
 import { QuizCountdown } from './quiz/QuizCountdown';
 import { QuizQuestionPanel } from './quiz/QuizQuestionPanel';
 import { QuizLeaderboard } from './quiz/QuizLeaderboard';
 import { QuizLiveStatus } from './quiz/QuizLiveStatus';
+import type { QuizState } from '@/hooks/useQuizSocket';
 
 interface Question {
   id: number;
@@ -18,19 +18,24 @@ interface Question {
 interface QuizControlProps {
   sessionId: string;
   onScoringModeChange?: (mode: 'individual' | 'department') => void;
+  quizState: QuizState | null;
+  isConnected: boolean;
+  countdown: number | null;
+  finalLeaderboardScores: Record<string, number> | null;
+  sendCommand: (type: string, payload?: Record<string, unknown>) => void;
 }
 
-export default function QuizControl({ sessionId, onScoringModeChange }: QuizControlProps) {
+export default function QuizControl({ 
+  sessionId, 
+  onScoringModeChange,
+  quizState,
+  isConnected,
+  countdown,
+  finalLeaderboardScores,
+  sendCommand
+}: QuizControlProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const {
-    quizState,
-    isConnected,
-    countdown,
-    finalLeaderboardScores,
-    sendCommand,
-  } = useQuizSocket({ sessionId, onScoringModeChange });
 
   const { playCorrect, playIncorrect } = useQuizAudio();
 

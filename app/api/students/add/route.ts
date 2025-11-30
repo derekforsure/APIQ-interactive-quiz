@@ -1,6 +1,7 @@
 import { getConnection } from '@/utils/db';
 import { z } from 'zod';
 import { successResponse, errorResponse } from '@/lib/apiResponse';
+import { getSession } from '@/lib/session';
 
 // Define a schema for the expected input
 const studentSchema = z.object({
@@ -12,6 +13,11 @@ const studentSchema = z.object({
 export async function POST(req: Request) {
   let connection;
   try {
+    const session = await getSession();
+    if (!session || !session.userId) {
+      return errorResponse('Unauthorized', 401);
+    }
+
     const body = await req.json();
     
     // Validate the request body against the schema
@@ -30,8 +36,8 @@ export async function POST(req: Request) {
 
     connection = await getConnection();
     const [result] = await connection.execute(
-      'INSERT INTO students (student_id, name, department_id) VALUES (?, ?, ?)',
-      [student_id, name, department_id]
+      'INSERT INTO students (student_id, name, department_id, created_by) VALUES (?, ?, ?, ?)',
+      [student_id, name, department_id, session.userId]
     );
     
     return successResponse({ message: 'Student added successfully', result }, 'Student added successfully', 201);

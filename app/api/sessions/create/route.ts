@@ -36,9 +36,10 @@ export async function POST(req: Request) {
 
     connection = await getConnection();
     const sessionId = randomBytes(16).toString("hex");
-    await connection.execute("INSERT INTO sessions (id, name) VALUES (?, ?)", [
+    await connection.execute("INSERT INTO sessions (id, name, created_by) VALUES (?, ?, ?)", [
       sessionId,
       name,
+      sessionData.userId,
     ]);
 
     return NextResponse.json({ sessionId, name });

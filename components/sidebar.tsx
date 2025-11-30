@@ -46,8 +46,8 @@ const platformItems = [
     icon: BookUser
   },
   {
-    title: "Department",
-    url: "/admin/departments",
+    title: "Groups",
+    url: "/admin/groups",
     icon: Building2,
   },
   {
@@ -64,9 +64,10 @@ const platformItems = [
 
 interface AppSidebarProps {
   adminName: string;
+  role?: string;
 }
 
-export function AppSidebar({ adminName }: AppSidebarProps) {
+export function AppSidebar({ adminName, role = 'admin' }: AppSidebarProps) {
   return (
     <Sidebar className="bg-white text-gray-900">
       <SidebarHeader className="p-4">
@@ -87,17 +88,25 @@ export function AppSidebar({ adminName }: AppSidebarProps) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {platformItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="hover:bg-gray-100 text-gray-700 hover:text-gray-900">
-                    <Link href={item.url} className="flex items-center gap-2 px-2 py-2">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                      <ChevronRight className="w-4 h-4 ml-auto" />
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {platformItems
+                .filter((item) => {
+                  // Hide subscription and settings from organizers
+                  if (role === 'organizer' && (item.title === 'Settings' || item.title === 'Help')) {
+                    return false;
+                  }
+                  return true;
+                })
+                .map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild className="hover:bg-gray-100 text-gray-700 hover:text-gray-900">
+                      <Link href={item.url} className="flex items-center gap-2 px-2 py-2">
+                        <item.icon className="w-4 h-4" />
+                        <span>{item.title}</span>
+                        <ChevronRight className="w-4 h-4 ml-auto" />
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -111,7 +120,7 @@ export function AppSidebar({ adminName }: AppSidebarProps) {
           </div>
           <div className="flex-1">
             <div className="font-medium text-gray-900">{adminName}</div>
-            <div className="text-sm text-gray-600">Administrator</div>
+            <div className="text-sm text-gray-600">{role === 'admin' ? 'Administrator' : 'Organizer'}</div>
           </div>
           <ChevronRight className="w-4 h-4 text-gray-600" />
         </div>
