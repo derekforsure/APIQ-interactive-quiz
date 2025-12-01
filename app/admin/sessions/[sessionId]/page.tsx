@@ -56,6 +56,11 @@ export default function SessionParticipantsPage() {
   const [selectedQuestionToAdd, setSelectedQuestionToAdd] = useState<string>('');
   const [selectedTab, setSelectedTab] = useState<'quiz-control' | 'questions' | 'participants' | 'scoreboard' | 'score-over-time'>('quiz-control');
   const [currentScoringMode, setCurrentScoringMode] = useState<'individual' | 'department'>('individual');
+  
+  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
+  const [error, setError] = useState<string | null>(null);
+  const [sessionLoading, setSessionLoading] = useState<boolean>(true);
 
   // Use custom hook for live counts and polling
   const { 

@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     // Get paginated data
     const dataQuery = `SELECT s.id, s.student_id, s.name, d.name as department, s.image_url, s.is_active 
                      FROM students s 
-                     JOIN departments d ON s.department_id = d.id${whereClause}
+                     LEFT JOIN departments d ON s.department_id = d.id${whereClause}
                      ORDER BY s.id DESC 
                      LIMIT ${limit} OFFSET ${offset}`;
     

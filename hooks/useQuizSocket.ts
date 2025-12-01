@@ -13,6 +13,8 @@ export interface QuizState {
   showAnswer: boolean;
 }
 
+
+
 interface UseQuizSocketProps {
   sessionId: string;
   onScoringModeChange?: (mode: 'individual' | 'department') => void;
@@ -20,7 +22,9 @@ interface UseQuizSocketProps {
 
 export function useQuizSocket({ sessionId, onScoringModeChange }: UseQuizSocketProps) {
   const [quizState, setQuizState] = useState<QuizState | null>(null);
+
   const [isConnected, setIsConnected] = useState(false);
+  const [clientId, setClientId] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [finalLeaderboardScores, setFinalLeaderboardScores] = useState<Record<string, number> | null>(null);
   const ws = useRef<WebSocket | null>(null);
@@ -55,7 +59,8 @@ export function useQuizSocket({ sessionId, onScoringModeChange }: UseQuizSocketP
       console.log('WebSocket connected');
       setIsConnected(true);
       reconnectAttemptsRef.current = 0;
-      ws.current?.send(JSON.stringify({ type: 'REGISTER', payload: { role: 'admin', sessionId } }));
+      // Register as a spectator by default. The component can then send a more specific registration.
+      ws.current?.send(JSON.stringify({ type: 'REGISTER', payload: { role: 'spectator', sessionId } }));
     };
 
     ws.current.onmessage = async (event) => {
@@ -68,6 +73,13 @@ export function useQuizSocket({ sessionId, onScoringModeChange }: UseQuizSocketP
         setIsConnected(false);
         return;
       }
+
+      if (data.type === 'CLIENT_ID') {
+        setClientId(data.payload.clientId);
+        return;
+      }
+
+
 
       if (['QUIZ_STATE', 'QUIZ_STARTED', 'BUZZER_ACTIVATED', 'SCORES_UPDATED', 'NEW_QUESTION', 'TIMER_UPDATE', 'BUZZER_OPEN', 'QUIZ_ENDED', 'COUNTDOWN', 'START_QUIZ', 'COUNTDOWN_START'].includes(data.type)) {
         if (data.type === 'COUNTDOWN') {
@@ -155,6 +167,7 @@ export function useQuizSocket({ sessionId, onScoringModeChange }: UseQuizSocketP
   return {
     quizState,
     isConnected,
+    clientId,
     countdown,
     finalLeaderboardScores,
     sendCommand,

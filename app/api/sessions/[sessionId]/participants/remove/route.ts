@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
   req: NextRequest,
-  context: { params: { sessionId: string } }
+  context: { params: Promise<{ sessionId: string }> }
 ) {
-  const { sessionId } = context.params;
+  const { sessionId } = await context.params;
   const { student_id } = await req.json();
 
   if (!sessionId || !student_id) {

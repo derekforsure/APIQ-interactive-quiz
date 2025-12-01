@@ -5,6 +5,7 @@ import { setSession } from "@/lib/session";
 import { randomBytes } from "crypto";
 import { successResponse, errorResponse } from '@/lib/apiResponse';
 import { z } from 'zod';
+import { logAudit, AuditActions } from '@/lib/auditLog';
 
 // Define a schema for the expected login input
 const loginSchema = z.object({
@@ -38,6 +39,14 @@ export async function POST(req: NextRequest) {
     )) as [{ id: number; username: string; password: string; subscription_status: string; trial_started_at: Date | null; role: string }[], unknown];
 
     if (rows.length === 0) {
+      // Log failed login attempt (no user found)
+      await logAudit({
+        userId: 0,
+        username,
+        action: AuditActions.LOGIN_FAILED,
+        details: { reason: 'User not found' },
+        req
+      });
       return errorResponse("Invalid username or password", 401);
     }
 
@@ -45,6 +54,14 @@ export async function POST(req: NextRequest) {
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
+      // Log failed login attempt (wrong password)
+      await logAudit({
+        userId: user.id,
+        username: user.username,
+        action: AuditActions.LOGIN_FAILED,
+        details: { reason: 'Invalid password' },
+        req
+      });
       return errorResponse("Invalid username or password", 401);
     }
 
@@ -66,6 +83,15 @@ export async function POST(req: NextRequest) {
       username: user.username,
       role: user.role,
       userId: user.id
+    });
+
+    // Log successful login
+    await logAudit({
+      userId: user.id,
+      username: user.username,
+      action: AuditActions.LOGIN,
+      details: { role: user.role },
+      req
     });
 
     return successResponse({ message: "Login successful" }, "Login successful");

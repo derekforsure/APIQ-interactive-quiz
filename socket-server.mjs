@@ -55,6 +55,8 @@ async function retryDbOperation(operation) {
   }
 }
 
+
+
 // Helper to get quiz state from Redis
 async function getQuizState(sessionId) {
   const state = await redis.get(`quiz:${sessionId}`);
@@ -84,6 +86,8 @@ async function saveQuizState(sessionId, state) {
   // Save with 24h TTL to prevent stale data piling up
   await redis.set(`quiz:${sessionId}`, JSON.stringify(state), 'EX', REDIS_SESSION_TTL);
 }
+
+
 
 // Helper to get active connections for a session
 function getConnections(sessionId) {
@@ -122,6 +126,8 @@ function broadcast(sessionId, data) {
 // Timer management (kept in memory for simplicity, but state synced to Redis)
 const sessionTimers = {};
 
+
+
 function startTimer(sessionId) {
   if (sessionTimers[sessionId]) {
     clearInterval(sessionTimers[sessionId]);
@@ -147,6 +153,8 @@ function startTimer(sessionId) {
     }
   }, 100);
 }
+
+
 
 // Heartbeat mechanism to detect and clean up stale connections
 const heartbeatInterval = setInterval(() => {
@@ -202,6 +210,9 @@ wss.on('connection', ws => {
 
       switch (type) {
         case 'REGISTER':
+          ws.id = `client-${Date.now()}-${Math.random()}`; // Assign a unique ID to the WebSocket connection
+          ws.send(JSON.stringify({ type: 'CLIENT_ID', payload: { clientId: ws.id } }));
+
           if (payload.role === 'admin') {
             connections.admin = ws;
           } else if (payload.role === 'student') {
@@ -212,6 +223,7 @@ wss.on('connection', ws => {
           // Send current state immediately upon connection
           const currentState = await getQuizState(sessionId);
           ws.send(JSON.stringify({ type: 'QUIZ_STATE', payload: currentState }));
+
           break;
 
         case 'SET_SCORING_MODE':
@@ -455,6 +467,8 @@ wss.on('connection', ws => {
             broadcast(sessionId, { type: 'QUIZ_ENDED', payload: { ...state, finalScores } });
           }
           break;
+
+
 
         default:
           console.log('Unknown message type:', type);

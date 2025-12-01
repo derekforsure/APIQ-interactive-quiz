@@ -7,7 +7,7 @@ import { getSession } from '@/lib/session';
 const studentSchema = z.object({
   student_id: z.string().min(1, "Student ID is required"),
   name: z.string().min(1, "Name is required"),
-  department_id: z.number().int().positive("Department ID must be a positive integer"),
+  department_id: z.number().int().positive("Department ID must be a positive integer").nullable().optional(),
 });
 
 export async function POST(req: Request) {
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     connection = await getConnection();
     const [result] = await connection.execute(
       'INSERT INTO students (student_id, name, department_id, created_by) VALUES (?, ?, ?, ?)',
-      [student_id, name, department_id, session.userId]
+      [student_id, name, department_id || null, session.userId]
     );
     
     return successResponse({ message: 'Student added successfully', result }, 'Student added successfully', 201);

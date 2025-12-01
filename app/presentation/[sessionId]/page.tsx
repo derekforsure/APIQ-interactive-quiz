@@ -12,6 +12,7 @@ interface Question {
   incorrect_option_1: string;
   incorrect_option_2: string;
   incorrect_option_3: string;
+  question_type: string;
 }
 
 interface QuizState {
@@ -111,12 +112,18 @@ export default function PresentationPage() {
 
   useEffect(() => {
     if (currentQuestion) {
-      setShuffledOptions(shuffleArray([
-        currentQuestion.answer,
-        currentQuestion.incorrect_option_1,
-        currentQuestion.incorrect_option_2,
-        currentQuestion.incorrect_option_3,
-      ]));
+      if (currentQuestion.question_type === 'multiple_choice') {
+        setShuffledOptions(shuffleArray([
+          currentQuestion.answer,
+          currentQuestion.incorrect_option_1,
+          currentQuestion.incorrect_option_2,
+          currentQuestion.incorrect_option_3,
+        ]));
+      } else if (currentQuestion.question_type === 'true_false') {
+        setShuffledOptions(['True', 'False']);
+      } else {
+        setShuffledOptions([]);
+      }
     }
   }, [currentQuestion]);
 
@@ -383,55 +390,77 @@ export default function PresentationPage() {
 
                 {/* Answer Options Grid */}
                 {!quizState.isReadingPeriod && currentQuestion && (
-                  <div className="grid grid-cols-2 gap-6">
-                    {shuffledOptions.map((option, index) => {
-                      const isCorrect = option === currentQuestion.answer;
-                      const shouldHighlight = showAnswerHighlight && isCorrect;
-                      
-                      return (
-                        <div
-                          key={index}
-                          className={`relative group transition-all duration-500 animate-fade-in ${
-                            shouldHighlight ? 'scale-105' : 'hover:scale-102'
-                          }`}
-                          style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
-                        >
-                          <div className={`absolute inset-0 rounded-2xl blur-xl transition-all duration-500 ${
-                            shouldHighlight 
-                              ? 'bg-gradient-to-r from-emerald-500 to-green-500 opacity-60 animate-pulse' 
-                              : 'bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-30'
-                          }`}></div>
-                          <div className={`relative px-10 py-8 rounded-2xl border-4 transition-all duration-500 ${
-                            shouldHighlight
-                              ? 'bg-gradient-to-br from-emerald-500 to-green-600 border-emerald-300 shadow-2xl'
-                              : 'bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-purple-500/40 backdrop-blur-xl shadow-xl hover:border-purple-400/60'
-                          }`}>
-                            <div className="flex items-center gap-6">
-                              <div className={`flex-shrink-0 w-16 h-16 rounded-xl flex items-center justify-center font-black text-3xl transition-all duration-500 ${
-                                shouldHighlight
-                                  ? 'bg-white text-emerald-600'
-                                  : 'bg-gradient-to-br from-purple-500 to-blue-500 text-white'
-                              }`}>
-                                {optionLabels[index]}
-                              </div>
-                              <p className={`text-3xl font-bold flex-1 transition-colors duration-500 ${
-                                shouldHighlight ? 'text-white' : 'text-gray-100'
-                              }`}>
-                                {option}
+                  <>
+                    {currentQuestion.question_type === 'text' ? (
+                      showAnswerHighlight && (
+                        <div className="mt-12 animate-fade-in">
+                          <div className="relative group">
+                            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-green-500 rounded-3xl blur-2xl opacity-40 animate-pulse"></div>
+                            <div className="relative px-16 py-12 bg-gradient-to-br from-emerald-900/90 to-emerald-950/90 backdrop-blur-2xl rounded-3xl border-2 border-emerald-500/50 shadow-2xl text-center">
+                              <p className="text-2xl font-medium text-emerald-300 mb-4 uppercase tracking-widest">Correct Answer</p>
+                              <p className="text-6xl font-black text-white drop-shadow-lg">
+                                {currentQuestion.answer}
                               </p>
-                              {shouldHighlight && (
-                                <div className="flex-shrink-0 w-12 h-12 bg-white rounded-full flex items-center justify-center animate-bounce-in">
-                                  <svg className="w-8 h-8 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                                  </svg>
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      )
+                    ) : (
+                      <div className={`grid gap-6 ${currentQuestion.question_type === 'true_false' ? 'grid-cols-2 max-w-4xl mx-auto' : 'grid-cols-2'}`}>
+                        {shuffledOptions.map((option, index) => {
+                          const isCorrect = option === currentQuestion.answer;
+                          // For True/False, we check if the option matches the answer string
+                          // For Multiple Choice, same logic
+                          const shouldHighlight = showAnswerHighlight && isCorrect;
+                          
+                          return (
+                            <div
+                              key={index}
+                              className={`relative group transition-all duration-500 animate-fade-in ${
+                                shouldHighlight ? 'scale-105' : 'hover:scale-102'
+                              }`}
+                              style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
+                            >
+                              <div className={`absolute inset-0 rounded-2xl blur-xl transition-all duration-500 ${
+                                shouldHighlight 
+                                  ? 'bg-gradient-to-r from-emerald-500 to-green-500 opacity-60 animate-pulse' 
+                                  : 'bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-30'
+                              }`}></div>
+                              <div className={`relative px-10 py-8 rounded-2xl border-4 transition-all duration-500 ${
+                                shouldHighlight
+                                  ? 'bg-gradient-to-br from-emerald-500 to-green-600 border-emerald-300 shadow-2xl'
+                                  : 'bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-purple-500/40 backdrop-blur-xl shadow-xl hover:border-purple-400/60'
+                              }`}>
+                                <div className="flex items-center gap-6">
+                                  {currentQuestion.question_type === 'multiple_choice' && (
+                                    <div className={`flex-shrink-0 w-16 h-16 rounded-xl flex items-center justify-center font-black text-3xl transition-all duration-500 ${
+                                      shouldHighlight
+                                        ? 'bg-white text-emerald-600'
+                                        : 'bg-gradient-to-br from-purple-500 to-blue-500 text-white'
+                                    }`}>
+                                      {optionLabels[index]}
+                                    </div>
+                                  )}
+                                  <p className={`text-3xl font-bold flex-1 transition-colors duration-500 ${
+                                    shouldHighlight ? 'text-white' : 'text-gray-100'
+                                  } ${currentQuestion.question_type === 'true_false' ? 'text-center' : ''}`}>
+                                    {option}
+                                  </p>
+                                  {shouldHighlight && (
+                                    <div className="flex-shrink-0 w-12 h-12 bg-white rounded-full flex items-center justify-center animate-bounce-in">
+                                      <svg className="w-8 h-8 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                                      </svg>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Buzzer Indicator */}

@@ -1,10 +1,11 @@
 import { 
+  Home,
   Play, 
   BadgeQuestionMark, 
   BookOpen, 
   Settings, 
   ChevronRight,
-  Building2,
+  Group,
   BookUser,
   HelpCircle,
   UserCog,
@@ -31,6 +32,11 @@ const platformItems = [
   {
     title: "Dashboard",
     url: "/admin/dashboard",
+    icon: Home,
+  },
+  {
+    title: "Arcade",
+    url: "/admin/arcade",
     icon: Play,
   },
   {
@@ -50,16 +56,11 @@ const platformItems = [
   {
     title: "Groups",
     url: "/admin/groups",
-    icon: Building2,
+    icon: Group,
   },
   {
-    title: "Settings",
-    url: "/admin/settings",
-    icon: Settings,
-  },
-  {
-    title: "Help",
-    url: "/admin/help",
+    title: "Guides",
+    url: "/admin/guides",
     icon: HelpCircle,
   },
 ]
@@ -105,13 +106,6 @@ export function AppSidebar({ adminName, role = 'admin' }: AppSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               {platformItems
-                .filter((item) => {
-                  // Hide subscription and settings from organizers
-                  if (role === 'organizer' && (item.title === 'Settings' || item.title === 'Help')) {
-                    return false;
-                  }
-                  return true;
-                })
                 .map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild className="hover:bg-gray-100 text-gray-700 hover:text-gray-900">
